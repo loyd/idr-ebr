@@ -1,0 +1,19 @@
+[package]
+name = "idr-ebr"
+version = "0.1.0"
+edition = "2021"
+
+[[bench]]
+name = "contention"
+harness = false
+
+[dependencies]
+scc = "2"
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+sharded-slab = "0.1.7" # for benchmarking
+
+[profile.release]
+debug = 1

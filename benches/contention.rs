@@ -1,0 +1,171 @@
+use std::{
+    sync::Barrier,
+    thread,
+    time::{Duration, Instant},
+};
+
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+
+trait Testee: Send + Sync {
+    type State;
+
+    fn make_state(&self, thread_no: u32) -> Self::State;
+    fn exec(&self, state: &mut Self::State);
+}
+
+fn run(thread_count: u32, iter_count: u64, testee: &impl Testee) -> Duration {
+    let start_barrier = Barrier::new(1 + thread_count as usize);
+    let end_barrier = Barrier::new(1 + thread_count as usize);
+
+    thread::scope(|scope| {
+        let mut handles = Vec::new();
+
+        for thread_no in 0..thread_count {
+            let start_barrier = &start_barrier;
+            let end_barrier = &end_barrier;
+
+            let handle = scope.spawn(move || {
+                let mut state = testee.make_state(thread_no);
+
+                start_barrier.wait();
+
+                for _ in 0..iter_count {
+                    testee.exec(black_box(&mut state));
+                }
+
+                end_barrier.wait();
+            });
+
+            handles.push(handle);
+        }
+
+        start_barrier.wait();
+        let start = Instant::now();
+        end_barrier.wait();
+        let elapsed = start.elapsed();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        elapsed
+    })
+}
+
+#[repr(align(128))] // avoid false sharing (relevant for sharded-slab)
+struct Value(u64);
+
+fn only_read(c: &mut Criterion) {
+    let mut group = c.benchmark_group("only_read");
+
+    for contention in parallelism() {
+        group.bench_with_input(
+            BenchmarkId::new("idr-repin", contention),
+            &contention,
+            |b, _| {
+                let testee = IdrTestee::new(false);
+                b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("idr-pin-once", contention),
+            &contention,
+            |b, _| {
+                let testee = IdrTestee::new(true);
+                b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("sharded-slab", contention),
+            &contention,
+            |b, _| {
+                let testee = ShardedSlabTestee::new();
+                b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+            },
+        );
+    }
+    group.finish();
+
+    struct IdrTestee {
+        idr: idr_ebr::Idr<Value>,
+        key: idr_ebr::Key,
+        pin_once: bool,
+    }
+
+    impl IdrTestee {
+        fn new(pin_once: bool) -> Self {
+            let idr = idr_ebr::Idr::new();
+            let mut key = None;
+
+            for i in 0u64..1_000 {
+                let k = idr.insert(Value(i)).unwrap();
+
+                if i == 500 {
+                    key = Some(k);
+                }
+            }
+
+            let key = key.unwrap();
+            Self { idr, key, pin_once }
+        }
+    }
+
+    impl Testee for IdrTestee {
+        type State = Option<scc::ebr::Guard>;
+
+        fn make_state(&self, _thread_no: u32) -> Self::State {
+            let _ = self.idr.get(self.key).unwrap(); // sanity check
+            let guard = scc::ebr::Guard::new(); // warm up
+            self.pin_once.then_some(guard)
+        }
+
+        fn exec(&self, _: &mut Self::State) {
+            black_box(self.idr.get(self.key));
+        }
+    }
+
+    struct ShardedSlabTestee {
+        slab: sharded_slab::Slab<Value>,
+        key: usize,
+    }
+
+    impl ShardedSlabTestee {
+        fn new() -> Self {
+            let slab = sharded_slab::Slab::new();
+            let mut key = None;
+
+            for i in 0u64..1_000 {
+                let k = slab.insert(Value(i)).unwrap();
+
+                if i == 500 {
+                    key = Some(k);
+                }
+            }
+
+            let key = key.unwrap();
+            Self { slab, key }
+        }
+    }
+
+    impl Testee for ShardedSlabTestee {
+        type State = ();
+
+        fn make_state(&self, _thread_no: u32) -> Self::State {
+            let _ = self.slab.get(self.key).unwrap(); // sanity check
+        }
+
+        fn exec(&self, _: &mut Self::State) {
+            black_box(self.slab.get(self.key));
+        }
+    }
+}
+
+fn parallelism() -> Vec<u32> {
+    let max = thread::available_parallelism().unwrap().get() as u32;
+    (1..=max).collect()
+}
+
+criterion_group!(cases, only_read);
+criterion_main!(cases);
