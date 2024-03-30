@@ -1,0 +1,13 @@
+error[E0080]: evaluation of `<InvalidConfig as idr_ebr::config::ConfigPrivate>::ENSURE_VALID` failed
+ --> src/config.rs
+  |
+  |         assert!(Self::RESERVED_BITS <= 32);
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the evaluated program panicked at 'assertion failed: Self::RESERVED_BITS <= 32', $DIR/src/config.rs:76:9
+  |
+  = note: this error originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+note: the above error was encountered while instantiating `fn idr_ebr::Idr::<u64, InvalidConfig>::new`
+  --> tests/config/reserved_bits_too_big.rs:10:13
+   |
+10 |     let _ = Idr::<u64, InvalidConfig>::new();
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

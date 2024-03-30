@@ -14,13 +14,7 @@ use std::{fmt, mem, ops::Deref};
 
 use scc::ebr;
 
-use self::{
-    config::{Config, DefaultConfig},
-    key::PageNo,
-    page::Page,
-    slot::Slot,
-    sync::Mutex,
-};
+use self::{config::ConfigPrivate, key::PageNo, page::Page, slot::Slot, sync::Mutex};
 
 mod config;
 mod key;
@@ -28,7 +22,10 @@ mod page;
 mod slot;
 mod sync;
 
-pub use self::key::Key;
+pub use self::{
+    config::{Config, DefaultConfig},
+    key::Key,
+};
 
 // === Idr ===
 
@@ -53,6 +50,9 @@ impl<T: 'static> Default for Idr<T> {
 impl<T: 'static, C: Config> Idr<T, C> {
     /// Returns a new IDR with the provided configuration parameters.
     pub fn new() -> Self {
+        // Perform compile-time postmono checks.
+        assert!(C::ENSURE_VALID);
+
         let pages = (0..C::MAX_PAGES).map(PageNo::new).map(Page::new).collect();
         Self {
             pages,

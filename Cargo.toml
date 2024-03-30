@@ -13,6 +13,7 @@ scc = "2"
 [dev-dependencies]
 criterion = "0.5.1"
 
+trybuild = "1"
 sharded-slab = "0.1.7" # for benchmarking
 
 [profile.release]
