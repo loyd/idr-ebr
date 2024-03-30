@@ -109,4 +109,6 @@ fn test_default_config() {
     assert_eq!(DefaultConfig::SLOT_MASK, u32::MAX);
     assert_eq!(DefaultConfig::GENERATION_BITS, 32);
     assert_eq!(DefaultConfig::GENERATION_MASK, u32::MAX);
+    assert_eq!(DefaultConfig::MAX_SLOTS, 4_294_967_264);
+    assert_eq!(DefaultConfig::MAX_GENERATIONS, 4_294_967_296);
 }
