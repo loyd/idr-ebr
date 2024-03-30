@@ -103,6 +103,7 @@ fn only_read(c: &mut Criterion) {
                 let k = idr.insert(Value(i)).unwrap();
 
                 if i == 500 {
+                    assert_eq!(idr.get(k).unwrap().0, i); // sanity check
                     key = Some(k);
                 }
             }
@@ -116,7 +117,6 @@ fn only_read(c: &mut Criterion) {
         type State = Option<scc::ebr::Guard>;
 
         fn make_state(&self, _thread_no: u32) -> Self::State {
-            let _ = self.idr.get(self.key).unwrap(); // sanity check
             let guard = scc::ebr::Guard::new(); // warm up
             self.pin_once.then_some(guard)
         }
@@ -140,6 +140,7 @@ fn only_read(c: &mut Criterion) {
                 let k = slab.insert(Value(i)).unwrap();
 
                 if i == 500 {
+                    assert_eq!(slab.get(k).unwrap().0, i); // sanity check
                     key = Some(k);
                 }
             }
@@ -152,9 +153,7 @@ fn only_read(c: &mut Criterion) {
     impl Testee for ShardedSlabTestee {
         type State = ();
 
-        fn make_state(&self, _thread_no: u32) -> Self::State {
-            let _ = self.slab.get(self.key).unwrap(); // sanity check
-        }
+        fn make_state(&self, _thread_no: u32) -> Self::State {}
 
         fn exec(&self, _: &mut Self::State) {
             black_box(self.slab.get(self.key));
