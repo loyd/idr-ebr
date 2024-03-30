@@ -63,6 +63,10 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// Inserts a value into the IDR, returning the key at which that
     /// value was inserted. This key can then be used to access the entry.
     ///
+    /// This method is, usually, lock-free. However, it can block if a new page
+    /// should be allocated. Once allocated, the page is never deallocated.
+    /// Thus, it can block no more than [`Config::MAX_PAGES`] times.
+    ///
     /// Returns `None` if there is no more space in the IDR,
     /// and no items can be added until some are removed.
     ///
@@ -85,7 +89,11 @@ impl<T: 'static, C: Config> Idr<T, C> {
 
     /// Returns a handle to a vacant entry allowing for further manipulation.
     ///
-    /// This function is useful when creating values that must contain their
+    /// This method is, usually, lock-free. However, it can block if a new page
+    /// should be allocated. Once allocated, the page is never deallocated.
+    /// Thus, it can block no more than [`Config::MAX_PAGES`] times.
+    ///
+    /// This method is useful when creating values that must contain their
     /// IDR key. The returned [`VacantEntry`] reserves a slot in the IDR and
     /// is able to return the key of the entry.
     ///
@@ -97,15 +105,15 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// # use idr_ebr::Idr;
     /// let idr = Idr::default();
     ///
-    /// let foo = {
+    /// let key = {
     ///     let entry = idr.vacant_entry().unwrap();
     ///     let key = entry.key();
     ///     entry.insert((key, "foo"));
     ///     key
     /// };
     ///
-    /// assert_eq!(idr.get(foo).unwrap().0, foo);
-    /// assert_eq!(idr.get(foo).unwrap().1, "foo");
+    /// assert_eq!(idr.get(key).unwrap().0, key);
+    /// assert_eq!(idr.get(key).unwrap().1, "foo");
     /// ```
     #[inline]
     pub fn vacant_entry(&self) -> Option<VacantEntry<'_, T, C>> {
@@ -119,11 +127,12 @@ impl<T: 'static, C: Config> Idr<T, C> {
     }
 
     /// Removes the entry at the given key in the IDR, returning `true` if a
-    /// value was removed.
+    /// value was present at the moment of the removal.
     ///
-    /// This method doesn't block the current thread until the value can be
-    /// removed. The removed entry becomes unreachable instantly even if
-    /// there are still handles to it.
+    /// This method is lock-free.
+    ///
+    /// The removed entry becomes unreachable for getting instantly,
+    /// but it still can be accessed using existing handles.
     ///
     /// An object behind the entry is not actually dropped until all handles are
     /// dropped and EBR garbage is cleaned up.
@@ -147,6 +156,10 @@ impl<T: 'static, C: Config> Idr<T, C> {
     ///
     /// // However, it still can be accessed using the handle.
     /// assert_eq!(entry, "foo");
+    ///
+    /// // An object behind the entry is not dropped until all handles are dropped.
+    /// // However, the real destruction of the object can be delayed according to EBR.
+    /// drop(entry);
     /// ```
     #[inline]
     pub fn remove(&self, key: Key) -> bool {
@@ -159,14 +172,15 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// Returns a borrowed handle to the entry associated with the given key,
     /// or `None` if the IDR contains no entry for the given key.
     ///
+    /// This method is wait-free.
+    ///
     /// While the handle exists, it indicates to the IDR that the entry the
     /// handle references is currently being accessed. If the entry is
-    /// removed from the IDR while a handle exists, it becomes unreachable
-    /// instantly. However, an object behind the entry is not actually
-    /// removed until all handles are dropped.
+    /// removed from the IDR while a handle exists, it's still accessible via
+    /// the handle.
     ///
-    /// This method doesn't modify memory, thus it creates no contention on it
-    /// at all. This is the whole point of the EBR pattern and the reason
+    /// This method **doesn't modify memory**, thus it creates no contention on
+    /// it at all. This is the whole point of the EBR pattern and the reason
     /// why it's used here.
     ///
     /// The returned handle cannot be send to another thread.
@@ -179,8 +193,14 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// let idr = Idr::default();
     /// let key = idr.insert("foo").unwrap();
     ///
-    /// assert_eq!(idr.get(key).unwrap(), "foo");
+    /// let entry = idr.get(key).unwrap();
+    /// assert_eq!(entry, "foo");
     ///
+    /// // If the entry is removed, the handle is still valid.
+    /// assert!(idr.remove(key));
+    /// assert_eq!(entry, "foo");
+    ///
+    /// // Getting entry for an unknown key produces None.
     /// assert!(idr.get(NonZeroU64::new(12345).unwrap().into()).is_none());
     /// ```
     #[inline]
@@ -199,11 +219,12 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// Returns a owned handle to the entry associated with the given key,
     /// or `None` if the IDR contains no entry for the given key.
     ///
+    /// This method is lock-free.
+    ///
     /// While the handle exists, it indicates to the IDR that the entry the
     /// handle references is currently being accessed. If the entry is
-    /// removed from the IDR while a handle exists, it becomes unreachable
-    /// instantly. However, an object behind the entry is not actually
-    /// removed until all handles are dropped.
+    /// removed from the IDR while a handle exists, it's still accessible via
+    /// the handle.
     ///
     /// Unlike [`Idr::get()`], which borrows the IDR, this method holds a strong
     /// reference to the object itself:
@@ -237,6 +258,8 @@ impl<T: 'static, C: Config> Idr<T, C> {
     }
 
     /// Returns `true` if the IDR contains an entry for the given key.
+    ///
+    /// This method is wait-free.
     ///
     /// # Example
     /// ```
@@ -279,6 +302,8 @@ impl<T: 'static, C: Config> VacantEntry<'_, T, C> {
     }
 
     /// Inserts a value in the IDR.
+    ///
+    /// This method is wait-free.
     ///
     /// To get the key at which this value will be inserted, use
     /// [`VacantEntry::key()`] prior to calling this method.
