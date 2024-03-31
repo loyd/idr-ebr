@@ -202,10 +202,15 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// ```
     #[inline]
     pub fn get(&self, key: Key) -> Option<BorrowedEntry<'_, T>> {
-        let guard = ebr::Guard::new();
         let page_no = key.page_no::<C>();
         let page = self.pages.get(page_no.to_usize())?;
-        let value = page.get(key, &guard).as_ref()?;
+
+        let guard = ebr::Guard::new();
+        let value = page.get(key, &guard);
+
+        if value.is_null() {
+            return None;
+        }
 
         Some(BorrowedEntry {
             value: unsafe { mem::transmute(value) },
@@ -248,9 +253,10 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// ```
     #[inline]
     pub fn get_owned(&self, key: Key) -> Option<OwnedEntry<T>> {
-        let guard = ebr::Guard::new();
         let page_no = key.page_no::<C>();
         let page = self.pages.get(page_no.to_usize())?;
+
+        let guard = ebr::Guard::new();
         page.get(key, &guard).get_shared().map(OwnedEntry)
     }
 
@@ -325,8 +331,32 @@ impl<T: 'static, C: Config> Drop for VacantEntry<'_, T, C> {
 /// See [`Idr::get()`] for more details.
 #[must_use]
 pub struct BorrowedEntry<'s, T> {
-    value: &'s T,
+    value: ebr::Ptr<'s, T>, // non-null
     _guard: ebr::Guard,
+}
+
+impl<T> BorrowedEntry<'_, T> {
+    /// Creates an owned handle to the entry.
+    ///
+    /// This method is lock-free, but it modifies the memory by incrementing the
+    /// reference counter.
+    ///
+    /// See [`OwnedEntry`] for more details.
+    #[inline]
+    pub fn to_owned(&self) -> OwnedEntry<T> {
+        OwnedEntry(self.value.get_shared().unwrap())
+    }
+
+    /// Converts the handle to an owned handle to the entry.
+    ///
+    /// This method is lock-free, but it modifies the memory by incrementing the
+    /// reference counter.
+    ///
+    /// See [`OwnedEntry`] for more details.
+    #[inline]
+    pub fn into_owned(self) -> OwnedEntry<T> {
+        OwnedEntry(self.value.get_shared().unwrap())
+    }
 }
 
 impl<T> Deref for BorrowedEntry<'_, T> {
@@ -334,19 +364,20 @@ impl<T> Deref for BorrowedEntry<'_, T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.value
+        self.value.as_ref().unwrap()
     }
 }
 
 impl<T: fmt::Debug> fmt::Debug for BorrowedEntry<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self.value, f)
+        fmt::Debug::fmt(self.value.as_ref().unwrap(), f)
     }
 }
 
 impl<T: PartialEq<T>> PartialEq<T> for BorrowedEntry<'_, T> {
+    #[inline]
     fn eq(&self, other: &T) -> bool {
-        self.value.eq(other)
+        (**self).eq(other)
     }
 }
 
@@ -374,6 +405,7 @@ impl<T: fmt::Debug> fmt::Debug for OwnedEntry<T> {
 }
 
 impl<T: PartialEq<T>> PartialEq<T> for OwnedEntry<T> {
+    #[inline]
     fn eq(&self, other: &T) -> bool {
         self.0.eq(other)
     }
