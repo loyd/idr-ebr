@@ -35,7 +35,13 @@ impl<T: 'static, C: Config> Slot<T, C> {
     pub(crate) fn uninit(&self) -> bool {
         let (unreachable, _) = self.data.swap((None, ebr::Tag::None), Ordering::SeqCst);
 
-        if unreachable.is_none() {
+        if let Some(unreachable) = unreachable {
+            // For now, `impl Drop for Shared` uses a special guard, which doesn't clean up.
+            // It can cause OOM if a thread is alive for a long time and doesn't use a
+            // normal guard via `Idr::get()` or directly (see `insert_remove` benchmark).
+            // TODO: create an issue in scc.
+            let _ = unreachable.release(&ebr::Guard::new());
+        } else {
             return false;
         }
 
