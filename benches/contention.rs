@@ -59,13 +59,18 @@ struct Value(u64);
 fn only_read(c: &mut Criterion) {
     let mut group = c.benchmark_group("only_read");
 
+    // Cache an immutable setup to avoid re-creating the testees for each benchmark.
+    let mut idr_repin_testee = None;
+    let mut idr_pin_once_testee = None;
+    let mut sharded_slab_testee = None;
+
     for contention in parallelism() {
         group.bench_with_input(
             BenchmarkId::new("idr-repin", contention),
             &contention,
             |b, _| {
-                let testee = IdrTestee::new(false);
-                b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+                let testee = idr_repin_testee.get_or_insert_with(|| IdrTestee::new(false));
+                b.iter_custom(|iter_count| run(contention, iter_count, testee));
             },
         );
 
@@ -73,8 +78,8 @@ fn only_read(c: &mut Criterion) {
             BenchmarkId::new("idr-pin-once", contention),
             &contention,
             |b, _| {
-                let testee = IdrTestee::new(true);
-                b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+                let testee = idr_pin_once_testee.get_or_insert_with(|| IdrTestee::new(true));
+                b.iter_custom(|iter_count| run(contention, iter_count, testee));
             },
         );
 
@@ -82,8 +87,8 @@ fn only_read(c: &mut Criterion) {
             BenchmarkId::new("sharded-slab", contention),
             &contention,
             |b, _| {
-                let testee = ShardedSlabTestee::new();
-                b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+                let testee = sharded_slab_testee.get_or_insert_with(ShardedSlabTestee::new);
+                b.iter_custom(|iter_count| run(contention, iter_count, testee));
             },
         );
     }
@@ -165,18 +170,22 @@ fn only_read(c: &mut Criterion) {
 fn insert_remove(c: &mut Criterion) {
     let mut group = c.benchmark_group("insert_remove");
 
+    // Cache an immutable setup to avoid re-creating the testees for each benchmark.
+    let mut idr_testee = None;
+    let mut sharded_slab_testee = None;
+
     for contention in parallelism() {
         group.bench_with_input(BenchmarkId::new("idr", contention), &contention, |b, _| {
-            let testee = IdrTestee::new();
-            b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+            let testee = idr_testee.get_or_insert_with(IdrTestee::new);
+            b.iter_custom(|iter_count| run(contention, iter_count, testee));
         });
 
         group.bench_with_input(
             BenchmarkId::new("sharded-slab", contention),
             &contention,
             |b, _| {
-                let testee = ShardedSlabTestee::new();
-                b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+                let testee = sharded_slab_testee.get_or_insert_with(ShardedSlabTestee::new);
+                b.iter_custom(|iter_count| run(contention, iter_count, testee));
             },
         );
     }
@@ -190,7 +199,7 @@ fn insert_remove(c: &mut Criterion) {
         fn new() -> Self {
             let idr = idr_ebr::Idr::new();
 
-            let keys = (0u64..2_000)
+            let keys = (0u64..100_000)
                 .map(|i| (idr.insert(Value(i)).unwrap(), i))
                 .filter(|(_, i)| i % 2 == 0)
                 .map(|(key, _)| key)
@@ -227,7 +236,7 @@ fn insert_remove(c: &mut Criterion) {
         fn new() -> Self {
             let slab = sharded_slab::Slab::new();
 
-            let keys = (0u64..2_000)
+            let keys = (0u64..100_000)
                 .map(|i| (slab.insert(Value(i)).unwrap(), i))
                 .filter(|(_, i)| i % 2 == 0)
                 .map(|(key, _)| key)
