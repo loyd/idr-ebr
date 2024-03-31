@@ -171,6 +171,13 @@ impl<T, C> Drop for Page<T, C> {
             return;
         }
 
+        // Call destructors.
+        for slot_index in 0..self.capacity {
+            let slot_ptr = unsafe { slots_ptr.add(slot_index as usize) };
+            unsafe { ptr::drop_in_place(slot_ptr) };
+        }
+
+        // Deallocate memory.
         let layout =
             alloc::Layout::array::<Slot<T, C>>(self.capacity as usize).expect("invalid layout");
         unsafe { alloc::dealloc(slots_ptr as *mut u8, layout) };
