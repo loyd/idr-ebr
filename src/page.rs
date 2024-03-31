@@ -135,7 +135,7 @@ impl<T: 'static, C: Config> Page<T, C> {
         }
 
         let layout =
-            alloc::Layout::array::<Slot<T, C>>(self.capacity as usize).expect("invlaid layout");
+            alloc::Layout::array::<Slot<T, C>>(self.capacity as usize).expect("invalid layout");
         let slots_ptr = unsafe { alloc::alloc(layout) };
 
         if slots_ptr.is_null() {
@@ -147,6 +147,7 @@ impl<T: 'static, C: Config> Page<T, C> {
         for slot_index in 0..self.capacity {
             let slot_ptr = unsafe { slots_ptr.add(slot_index as usize) };
 
+            // TODO: comment it never overflows
             let next_free = if slot_index + 1 < self.capacity {
                 slot_index + 1
             } else {

@@ -52,6 +52,7 @@ fn run(thread_count: u32, iter_count: u64, testee: &impl Testee) -> Duration {
     })
 }
 
+#[derive(Copy, Clone)]
 #[repr(align(128))] // avoid false sharing (relevant for sharded-slab)
 struct Value(u64);
 
@@ -161,10 +162,105 @@ fn only_read(c: &mut Criterion) {
     }
 }
 
+fn insert_remove(c: &mut Criterion) {
+    let mut group = c.benchmark_group("insert_remove");
+
+    for contention in parallelism() {
+        group.bench_with_input(BenchmarkId::new("idr", contention), &contention, |b, _| {
+            let testee = IdrTestee::new();
+            b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+        });
+
+        group.bench_with_input(
+            BenchmarkId::new("sharded-slab", contention),
+            &contention,
+            |b, _| {
+                let testee = ShardedSlabTestee::new();
+                b.iter_custom(|iter_count| run(contention, iter_count, &testee));
+            },
+        );
+    }
+    group.finish();
+
+    struct IdrTestee {
+        idr: idr_ebr::Idr<Value>,
+    }
+
+    impl IdrTestee {
+        fn new() -> Self {
+            let idr = idr_ebr::Idr::new();
+
+            let keys = (0u64..2_000)
+                .map(|i| (idr.insert(Value(i)).unwrap(), i))
+                .filter(|(_, i)| i % 2 == 0)
+                .map(|(key, _)| key)
+                .collect::<Vec<_>>();
+
+            // Remove every other entry.
+            for key in keys {
+                idr.remove(key);
+                assert!(!idr.contains(key)); // sanity check
+            }
+
+            Self { idr }
+        }
+    }
+
+    impl Testee for IdrTestee {
+        type State = Value;
+
+        fn make_state(&self, thread_no: u32) -> Self::State {
+            Value(u64::from(thread_no))
+        }
+
+        fn exec(&self, state: &mut Self::State) {
+            let key = self.idr.insert(*state).unwrap();
+            self.idr.remove(key);
+        }
+    }
+
+    struct ShardedSlabTestee {
+        slab: sharded_slab::Slab<Value>,
+    }
+
+    impl ShardedSlabTestee {
+        fn new() -> Self {
+            let slab = sharded_slab::Slab::new();
+
+            let keys = (0u64..2_000)
+                .map(|i| (slab.insert(Value(i)).unwrap(), i))
+                .filter(|(_, i)| i % 2 == 0)
+                .map(|(key, _)| key)
+                .collect::<Vec<_>>();
+
+            // Remove every other entry.
+            for key in keys {
+                slab.remove(key);
+                assert!(!slab.contains(key)); // sanity check
+            }
+
+            Self { slab }
+        }
+    }
+
+    impl Testee for ShardedSlabTestee {
+        type State = Value;
+
+        fn make_state(&self, thread_no: u32) -> Self::State {
+            Value(u64::from(thread_no))
+        }
+
+        fn exec(&self, state: &mut Self::State) {
+            let key = self.slab.insert(*state).unwrap();
+            self.slab.remove(key);
+        }
+    }
+}
+
 fn parallelism() -> Vec<u32> {
     let max = thread::available_parallelism().unwrap().get() as u32;
     (1..=max).collect()
 }
 
-criterion_group!(cases, only_read);
+criterion_group!(cases, only_read, insert_remove);
 criterion_main!(cases);

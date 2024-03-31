@@ -266,7 +266,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// # use idr_ebr::Idr;
     /// let idr = Idr::default();
     ///
-    /// let key = idr.insert("hello world").unwrap();
+    /// let key = idr.insert("foo").unwrap();
     /// assert!(idr.contains(key));
     ///
     /// idr.remove(key);
