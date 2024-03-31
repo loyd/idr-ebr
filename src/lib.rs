@@ -14,9 +14,10 @@ use std::{fmt, mem, ops::Deref};
 
 use scc::ebr;
 
-use self::{config::ConfigPrivate, key::PageNo, page::Page, slot::Slot, sync::Mutex};
+use self::{config::ConfigPrivate, control::PageControl, key::PageNo, page::Page, slot::Slot};
 
 mod config;
+mod control;
 mod key;
 mod page;
 mod slot;
@@ -38,7 +39,7 @@ pub struct Idr<T, C = DefaultConfig> {
     // TODO: flatten
     pages: Box<[Page<T, C>]>,
     // Used to synchronize page allocations.
-    page_alloc_lock: Mutex<()>,
+    page_control: PageControl,
 }
 
 impl<T: 'static> Default for Idr<T> {
@@ -53,10 +54,9 @@ impl<T: 'static, C: Config> Idr<T, C> {
         // Perform compile-time postmono checks.
         assert!(C::ENSURE_VALID);
 
-        let pages = (0..C::MAX_PAGES).map(PageNo::new).map(Page::new).collect();
         Self {
-            pages,
-            page_alloc_lock: Mutex::new(()),
+            pages: (0..C::MAX_PAGES).map(PageNo::new).map(Page::new).collect(),
+            page_control: PageControl::default(),
         }
     }
 
@@ -117,13 +117,10 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// ```
     #[inline]
     pub fn vacant_entry(&self) -> Option<VacantEntry<'_, T, C>> {
-        for page in self.pages.iter() {
-            if let Some((key, slot)) = page.reserve(&self.page_alloc_lock) {
-                return Some(VacantEntry { page, slot, key });
-            }
-        }
-
-        None
+        self.page_control.choose(&self.pages, |page| {
+            page.reserve(&self.page_control)
+                .map(|(key, slot)| VacantEntry { page, slot, key })
+        })
     }
 
     /// Removes the entry at the given key in the IDR, returning `true` if a

@@ -9,6 +9,7 @@ harness = false
 
 [dependencies]
 scc = "2"
+fastrand = "2"
 
 [dev-dependencies]
 criterion = "0.5.1"

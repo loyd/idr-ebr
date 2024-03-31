@@ -4,19 +4,17 @@ use scc::ebr;
 
 use crate::{
     config::Config,
+    control::PageControl,
     key::{Key, PageNo},
     slot::Slot,
-    sync::{
-        atomic::{AtomicPtr, AtomicU32, Ordering},
-        Mutex,
-    },
+    sync::atomic::{AtomicPtr, AtomicU32, Ordering},
 };
 
 pub(crate) struct Page<T, C> {
     start_slot_id: u32,
     capacity: u32,
-    slots: AtomicPtr<Slot<T, C>>, // TODO: just *const?
-    free_head: AtomicU32,         // MAX means no free slots
+    slots: AtomicPtr<Slot<T, C>>,
+    free_head: AtomicU32, // MAX means no free slots
 }
 
 impl<T: 'static, C: Config> Page<T, C> {
@@ -54,12 +52,9 @@ impl<T: 'static, C: Config> Page<T, C> {
         }
     }
 
-    pub(crate) fn reserve(&self, page_alloc_lock: &Mutex<()>) -> Option<(Key, &Slot<T, C>)> {
-        let mut slots_ptr = self.slots.load(Ordering::Relaxed);
-
-        if slots_ptr.is_null() {
-            slots_ptr = self.allocate(page_alloc_lock);
-        }
+    pub(crate) fn reserve(&self, page_control: &PageControl) -> Option<(Key, &Slot<T, C>)> {
+        let slots_ptr =
+            page_control.get_or_lock(|| self.slots.load(Ordering::Relaxed), || self.allocate());
 
         let mut free_head = self.free_head.load(Ordering::Acquire);
         let (slot_index, slot) = loop {
@@ -126,13 +121,8 @@ impl<T: 'static, C: Config> Page<T, C> {
 
     #[cold]
     #[inline(never)]
-    fn allocate(&self, page_alloc_lock: &Mutex<()>) -> *mut Slot<T, C> {
-        let _guard = page_alloc_lock.lock();
-
-        let slots_ptr = self.slots.load(Ordering::Relaxed);
-        if !slots_ptr.is_null() {
-            return slots_ptr;
-        }
+    fn allocate(&self) {
+        debug_assert!(self.slots.load(Ordering::Relaxed).is_null());
 
         let layout =
             alloc::Layout::array::<Slot<T, C>>(self.capacity as usize).expect("invalid layout");
@@ -158,8 +148,8 @@ impl<T: 'static, C: Config> Page<T, C> {
             unsafe { slot_ptr.write(slot) };
         }
 
+        debug_assert!(self.slots.load(Ordering::Relaxed).is_null());
         self.slots.store(slots_ptr, Ordering::Relaxed);
-        slots_ptr
     }
 }
 

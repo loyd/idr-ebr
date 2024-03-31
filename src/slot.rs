@@ -11,7 +11,7 @@ use crate::{
 // TODO: use loom Track
 pub(crate) struct Slot<T, C> {
     generation: AtomicU32,
-    next_free: AtomicU32, // MAX means no next, TODO: UnsafeCell<u32>?
+    next_free: AtomicU32, // MAX means no next
     data: ebr::AtomicShared<T>,
     _config: PhantomData<C>,
 }
@@ -33,7 +33,7 @@ impl<T: 'static, C: Config> Slot<T, C> {
     }
 
     pub(crate) fn uninit(&self) -> bool {
-        let (unreachable, _) = self.data.swap((None, ebr::Tag::None), Ordering::SeqCst);
+        let (unreachable, _) = self.data.swap((None, ebr::Tag::None), Ordering::Release);
 
         if let Some(unreachable) = unreachable {
             // For now, `impl Drop for Shared` uses a special guard, which doesn't clean up.
