@@ -12,7 +12,7 @@ scc = "2"
 
 [dev-dependencies]
 criterion = "0.5.1"
-
+mimalloc = { version = "0.1.29", default_features = false }
 trybuild = "1"
 sharded-slab = "0.1.7" # for benchmarking
 

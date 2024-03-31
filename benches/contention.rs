@@ -264,3 +264,6 @@ fn parallelism() -> Vec<u32> {
 
 criterion_group!(cases, only_read, insert_remove);
 criterion_main!(cases);
+
+#[global_allocator]
+static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
