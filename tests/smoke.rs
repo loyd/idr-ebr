@@ -28,7 +28,7 @@ fn it_works() {
         if value % 2 == 0 {
             assert!(actual.is_none());
         } else {
-            assert_eq!(&*idr.get(*key).unwrap(), value);
+            assert_eq!(actual.unwrap(), *value);
         }
     }
 }

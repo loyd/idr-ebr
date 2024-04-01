@@ -2,7 +2,7 @@ error[E0080]: evaluation of `<InvalidConfig as idr_ebr::config::ConfigPrivate>::
  --> src/config.rs
   |
   |         assert!(Self::INITIAL_PAGE_SIZE.is_power_of_two());
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the evaluated program panicked at 'assertion failed: Self::INITIAL_PAGE_SIZE.is_power_of_two()', $DIR/src/config.rs:77:9
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the evaluated program panicked at 'assertion failed: Self::INITIAL_PAGE_SIZE.is_power_of_two()', $DIR/src/config.rs:79:9
   |
   = note: this error originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
 
