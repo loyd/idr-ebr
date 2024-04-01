@@ -8,8 +8,6 @@
 //!
 //! TODO
 
-#![warn(rust_2018_idioms, unreachable_pub, missing_docs)]
-
 use std::{fmt, mem, ops::Deref};
 
 use scc::ebr;
@@ -19,9 +17,9 @@ use self::{config::ConfigPrivate, control::PageControl, key::PageNo, page::Page,
 mod config;
 mod control;
 mod key;
+mod loom;
 mod page;
 mod slot;
-mod sync;
 
 pub use self::{
     config::{Config, DefaultConfig},
@@ -70,7 +68,12 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// Returns `None` if there is no more space in the IDR,
     /// and no items can be added until some are removed.
     ///
+    /// # Panics
+    ///
+    /// If a new page should be allocated, but the allocator fails.
+    ///
     /// # Example
+    ///
     /// ```
     /// # use idr_ebr::Idr;
     /// let idr = Idr::default();
@@ -100,7 +103,12 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// Returns `None` if there is no more space in the IDR,
     /// and no items can be added until some are removed.
     ///
+    /// # Panics
+    ///
+    /// If a new page should be allocated, but the allocator fails.
+    ///
     /// # Example
+    ///
     /// ```
     /// # use idr_ebr::Idr;
     /// let idr = Idr::default();
@@ -135,6 +143,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// dropped and EBR garbage is cleaned up.
     ///
     /// # Example
+    ///
     /// ```
     /// # use idr_ebr::Idr;
     /// let idr = Idr::default();
@@ -184,6 +193,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// Also, it means it cannot be hold over `.await` points.
     ///
     /// # Example
+    ///
     /// ```
     /// # use std::num::NonZeroU64;
     /// # use idr_ebr::Idr;
@@ -213,7 +223,12 @@ impl<T: 'static, C: Config> Idr<T, C> {
         }
 
         Some(BorrowedEntry {
-            value: unsafe { mem::transmute(value) },
+            // Prolongue the lifetime of the guard by moving it into the handle.
+            // SAFETY: We ensure the value cannot be accessed once the guard is dropped:
+            // * The value cannot be moved out of the handle.
+            // * An access to the value is only possible with the handle's lifetime.
+            // * The ptr is dropped before the guard.
+            value: unsafe { mem::transmute::<ebr::Ptr<'_, T>, ebr::Ptr<'_, T>>(value) },
             _guard: guard,
         })
     }
@@ -236,6 +251,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// * It can be hold over `.await` points.
     ///
     /// # Example
+    ///
     /// ```
     /// # use idr_ebr::Idr;
     /// let idr = Idr::default();
@@ -265,6 +281,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// This method is wait-free.
     ///
     /// # Example
+    ///
     /// ```
     /// # use idr_ebr::Idr;
     /// let idr = Idr::default();
@@ -278,6 +295,15 @@ impl<T: 'static, C: Config> Idr<T, C> {
     #[inline]
     pub fn contains(&self, key: Key) -> bool {
         self.get(key).is_some()
+    }
+}
+
+impl<T, C: Config> fmt::Debug for Idr<T, C> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Idr")
+            .field("allocated_pages", &self.page_control.allocated())
+            .field("config", &C::debug())
+            .finish_non_exhaustive()
     }
 }
 
@@ -299,6 +325,7 @@ impl<T: 'static, C: Config> VacantEntry<'_, T, C> {
     /// Returns the key at which this entry will be inserted.
     ///
     /// An entry stored in this entry will be associated with this key.
+    #[must_use]
     #[inline]
     pub fn key(&self) -> Key {
         self.key
@@ -320,7 +347,16 @@ impl<T: 'static, C: Config> VacantEntry<'_, T, C> {
 impl<T: 'static, C: Config> Drop for VacantEntry<'_, T, C> {
     #[inline]
     fn drop(&mut self) {
-        self.page.add_free(self.slot);
+        // SAFETY: the slot belongs to this page by construction.
+        unsafe { self.page.add_free(self.slot) };
+    }
+}
+
+impl<T, C: Config> fmt::Debug for VacantEntry<'_, T, C> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("VacantEntry")
+            .field("key", &self.key)
+            .finish_non_exhaustive()
     }
 }
 

@@ -5,7 +5,7 @@ use scc::ebr;
 use crate::{
     config::Config,
     key::{Generation, Key},
-    sync::atomic::{AtomicU32, Ordering},
+    loom::sync::atomic::{AtomicU32, Ordering},
 };
 
 // TODO: use loom Track

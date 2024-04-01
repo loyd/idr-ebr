@@ -1,4 +1,4 @@
-use crate::sync::{
+use crate::loom::sync::{
     atomic::{AtomicU32, Ordering},
     Mutex,
 };
@@ -32,7 +32,7 @@ impl PageControl {
             return ptr;
         }
 
-        let _guard = self.lock.lock();
+        let _guard = self.lock.lock().expect("lock poisoned");
 
         // Re-check if the page is allocated while acquiring the lock.
         let ptr = get();
@@ -73,5 +73,9 @@ impl PageControl {
         }
 
         None
+    }
+
+    pub(crate) fn allocated(&self) -> u32 {
+        self.allocated.load(Ordering::Relaxed)
     }
 }

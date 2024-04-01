@@ -43,6 +43,7 @@ pub trait Config: Sized {
 
     /// Returns a debug representation of the configuration, which includes all
     /// internally calculated values and limits.
+    #[must_use]
     fn debug() -> impl Debug {
         DebugConfig::<Self>(PhantomData)
     }
@@ -52,6 +53,7 @@ pub trait Config: Sized {
 /// * No bits reserved for user code.
 /// * A capacity is 4,294,967,264.
 /// * A generation counter with a period of 4,294,967,296.
+#[allow(missing_debug_implementations)] // `Config::debug()` instead
 pub struct DefaultConfig;
 
 impl Config for DefaultConfig {

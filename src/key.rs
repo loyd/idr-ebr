@@ -17,6 +17,9 @@ use crate::config::{Config, ConfigPrivate};
 pub struct Key(NonZeroU64);
 
 impl Key {
+    /// # Safety
+    ///
+    /// Both parameters cannot be zero.
     pub(crate) unsafe fn new_unchecked<C: Config>(slot_id: u32, generation: Generation<C>) -> Self {
         debug_assert!(slot_id > 0);
         let raw = u64::from(generation.to_u32()) << C::SLOT_BITS | u64::from(slot_id);
@@ -154,7 +157,7 @@ impl<C: Config> Generation<C> {
         self.value
     }
 
-    pub(crate) fn inc(&self) -> Self {
+    pub(crate) fn inc(self) -> Self {
         Self {
             value: (self.value + 1) & C::GENERATION_MASK,
             _config: PhantomData,

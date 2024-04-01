@@ -3,6 +3,23 @@ name = "idr-ebr"
 version = "0.1.0"
 edition = "2021"
 
+[lints.rust]
+rust_2018_idioms = "warn"
+unreachable_pub = "warn"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+
+pedantic = { level = "warn", priority = -1 }
+doc_markdown = "allow" # false positive
+inline_always = "allow"
+module_name_repetitions = "allow"
+missing_panics_doc = "allow"
+cast_possible_truncation = "allow"
+similar_names = "allow"
+
 [[bench]]
 name = "contention"
 harness = false

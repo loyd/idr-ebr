@@ -1,3 +1,5 @@
+#![allow(missing_docs, clippy::items_after_statements, clippy::too_many_lines)]
+
 use std::{
     sync::Barrier,
     thread,
@@ -167,7 +169,7 @@ fn only_read(c: &mut Criterion) {
 
         fn make_state(&self, _thread_no: u32) -> Self::State {}
 
-        fn exec(&self, _: &mut Self::State) {
+        fn exec(&self, (): &mut Self::State) {
             black_box(self.slab.get(self.key));
         }
     }
@@ -196,7 +198,7 @@ fn only_read(c: &mut Criterion) {
             assert_eq!(self.weak.upgrade().unwrap().0, 500); // sanity check
         }
 
-        fn exec(&self, _: &mut Self::State) {
+        fn exec(&self, (): &mut Self::State) {
             black_box(self.weak.upgrade());
         }
     }
@@ -302,8 +304,8 @@ fn insert_remove(c: &mut Criterion) {
 }
 
 fn parallelism() -> Vec<u32> {
-    let max = thread::available_parallelism().unwrap().get() as u32;
-    (1..=max).collect()
+    let max = thread::available_parallelism().unwrap().get();
+    (1..=max.try_into().unwrap()).collect()
 }
 
 criterion_group!(cases, only_read, insert_remove);
