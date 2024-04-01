@@ -63,6 +63,7 @@ fn only_read(c: &mut Criterion) {
     let mut idr_repin_testee = None;
     let mut idr_pin_once_testee = None;
     let mut sharded_slab_testee = None;
+    let mut weak_testee = None;
 
     for contention in parallelism() {
         group.bench_with_input(
@@ -91,6 +92,11 @@ fn only_read(c: &mut Criterion) {
                 b.iter_custom(|iter_count| run(contention, iter_count, testee));
             },
         );
+
+        group.bench_with_input(BenchmarkId::new("weak", contention), &contention, |b, _| {
+            let testee = weak_testee.get_or_insert_with(WeakTestee::new);
+            b.iter_custom(|iter_count| run(contention, iter_count, testee));
+        });
     }
     group.finish();
 
@@ -163,6 +169,35 @@ fn only_read(c: &mut Criterion) {
 
         fn exec(&self, _: &mut Self::State) {
             black_box(self.slab.get(self.key));
+        }
+    }
+
+    struct WeakTestee {
+        #[allow(dead_code)]
+        strong: std::sync::Arc<Value>,
+        weak: std::sync::Weak<Value>,
+    }
+
+    impl WeakTestee {
+        fn new() -> Self {
+            let strong = std::sync::Arc::new(Value(500));
+
+            Self {
+                weak: std::sync::Arc::downgrade(&strong),
+                strong,
+            }
+        }
+    }
+
+    impl Testee for WeakTestee {
+        type State = ();
+
+        fn make_state(&self, _thread_no: u32) -> Self::State {
+            assert_eq!(self.weak.upgrade().unwrap().0, 500); // sanity check
+        }
+
+        fn exec(&self, _: &mut Self::State) {
+            black_box(self.weak.upgrade());
         }
     }
 }
