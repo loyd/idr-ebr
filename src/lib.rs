@@ -51,6 +51,16 @@ impl<T: 'static> Default for Idr<T> {
 }
 
 impl<T: 'static, C: Config> Idr<T, C> {
+    /// The number of bits in each key which are used by the IDR.
+    ///
+    /// If other data is packed into the keys returned by [`Idr::insert()`],
+    /// user code is free to use any bits higher than the `USED_BITS`-th bit.
+    ///
+    /// This is determined by the [`Config`] type that configures the IDR's
+    /// parameters. By default, all bits are used; this can be changed by
+    /// overriding the [`Config::RESERVED_BITS`] constant.
+    pub const USED_BITS: u32 = C::USED_BITS;
+
     /// Returns a new IDR with the provided configuration parameters.
     pub fn new() -> Self {
         // Perform compile-time postmono checks.
