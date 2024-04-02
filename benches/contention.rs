@@ -1,6 +1,7 @@
 #![allow(missing_docs, clippy::items_after_statements, clippy::too_many_lines)]
 
 use std::{
+    str::FromStr,
     sync::Barrier,
     thread,
     time::{Duration, Instant},
@@ -67,7 +68,7 @@ fn only_read(c: &mut Criterion) {
     let mut sharded_slab_testee = None;
     let mut weak_testee = None;
 
-    for contention in parallelism() {
+    for contention in contentions() {
         group.bench_with_input(
             BenchmarkId::new("idr-repin", contention),
             &contention,
@@ -240,7 +241,7 @@ fn insert_remove(c: &mut Criterion) {
     let mut idr_testee = None;
     let mut sharded_slab_testee = None;
 
-    for contention in parallelism() {
+    for contention in contentions() {
         group.bench_with_input(BenchmarkId::new("idr", contention), &contention, |b, _| {
             let testee = idr_testee.get_or_insert_with(IdrTestee::new);
             b.iter_custom(|iter_count| run(contention, iter_count, testee));
@@ -332,9 +333,26 @@ fn insert_remove(c: &mut Criterion) {
     }
 }
 
-fn parallelism() -> Vec<u32> {
-    let max = thread::available_parallelism().unwrap().get();
-    (1..=max.try_into().unwrap()).collect()
+fn max_parallelism() -> u32 {
+    std::env::var("BENCH_MAX_PARALLELISM").ok().map_or_else(
+        || {
+            std::thread::available_parallelism()
+                .expect("cannot get available parallelism")
+                .get() as u32
+        },
+        |s| u32::from_str(&s).expect("invalid value for BENCH_MAX_PARALLELISM"),
+    )
+}
+
+fn contentions() -> Vec<u32> {
+    let max_parallelism = max_parallelism();
+
+    (1..=10)
+        .chain((12..=30).step_by(2))
+        .chain((35..=60).step_by(5))
+        .chain((70..).step_by(10))
+        .take_while(|p| *p <= max_parallelism)
+        .collect()
 }
 
 criterion_group!(cases, only_read, insert_remove);
