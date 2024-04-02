@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{ptr, slice};
 
 use scc::ebr;
 
@@ -11,7 +11,10 @@ use crate::{
         sync::atomic::{AtomicPtr, AtomicU32, Ordering},
     },
     slot::Slot,
+    BorrowedEntry,
 };
+
+// === Page ===
 
 pub(crate) struct Page<T, C> {
     start_slot_id: u32,
@@ -41,7 +44,7 @@ impl<T: 'static, C: Config> Page<T, C> {
         loop {
             slot.set_next_free(free_head);
 
-            // SAFETY: derived from the invariant that the slot belongs to this page.
+            // SAFETY: Derived from the invariant that the slot belongs to this page.
             let slot_index = (slot as *const Slot<T, C>).offset_from(slots_ptr);
             debug_assert!((0isize..(1 << 31)).contains(&slot_index));
 
@@ -120,15 +123,15 @@ impl<T: 'static, C: Config> Page<T, C> {
             return false;
         }
 
-        // SAFETY: the slot belongs to this page.
+        // SAFETY: The slot belongs to this page.
         unsafe { self.add_free(slot) };
         true
     }
 
-    pub(crate) fn get<'g>(&self, key: Key, guard: &'g ebr::Guard) -> ebr::Ptr<'g, T> {
+    pub(crate) fn get<'g>(&self, key: Key, guard: &'g ebr::Guard) -> Option<BorrowedEntry<'g, T>> {
         let slots_ptr = self.slots.load(Ordering::Relaxed);
         if slots_ptr.is_null() {
-            return ebr::Ptr::null();
+            return None;
         }
 
         let slot_index = key.slot_id::<C>() - self.start_slot_id;
@@ -137,7 +140,26 @@ impl<T: 'static, C: Config> Page<T, C> {
         // SAFETY: Both the starting and resulting pointer is in bounds of the same
         // allocated object, because `slot_index` belongs to this page.
         let slot = unsafe { &*slots_ptr.add(slot_index as usize) };
-        slot.get(key, guard)
+        BorrowedEntry::new(slot.get(key, guard))
+    }
+
+    /// Iterates over occupied slots, or `None` if the page isn't allocated.
+    #[allow(clippy::iter_not_returning_iterator)]
+    pub(crate) fn iter<'g>(&self, guard: &'g ebr::Guard) -> Option<Iter<'g, '_, T, C>> {
+        let slots_ptr = self.slots.load(Ordering::Relaxed);
+        if slots_ptr.is_null() {
+            return None;
+        }
+
+        // SAFETY: Slots are properly initialized.
+        let slots = unsafe { slice::from_raw_parts(slots_ptr, self.capacity as usize) };
+
+        Some(Iter {
+            slots,
+            // It never underflows, because slot ids are non-zero.
+            prev_slot_id: self.start_slot_id - 1,
+            guard,
+        })
     }
 
     #[cold]
@@ -172,7 +194,7 @@ impl<T: 'static, C: Config> Page<T, C> {
 
             let slot = Slot::new(next_free);
 
-            // SAFETY: the slot is properly aligned.
+            // SAFETY: The slot is properly aligned.
             unsafe { slot_ptr.write(slot) };
         }
 
@@ -212,3 +234,37 @@ impl<T, C> Drop for Page<T, C> {
         unsafe { alloc::dealloc(slots_ptr.cast::<u8>(), layout) };
     }
 }
+
+// === Iter ===
+
+/// Iterates over occupied slots.
+#[must_use]
+pub(crate) struct Iter<'g, 's, T, C> {
+    slots: &'s [Slot<T, C>],
+    prev_slot_id: u32,
+    guard: &'g ebr::Guard,
+}
+
+impl<'g, 's, T: 'static, C: Config> Iterator for Iter<'g, 's, T, C> {
+    type Item = (Key, BorrowedEntry<'g, T>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((slot, rest)) = self.slots.split_first() {
+            // It never overflows, because it contains the index of a previous slot.
+            self.prev_slot_id += 1;
+            self.slots = rest;
+
+            // SAFETY: `slot_id` is always non-zero, because it includes a bit of a page.
+            let key = unsafe { Key::new_unchecked(self.prev_slot_id, slot.generation()) };
+            let ptr = slot.get(key, self.guard);
+
+            if let Some(entry) = BorrowedEntry::new(ptr) {
+                return Some((key, entry));
+            }
+        }
+
+        None
+    }
+}
+
+impl<T: 'static, C: Config> std::iter::FusedIterator for Iter<'_, '_, T, C> {}

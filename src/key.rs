@@ -12,7 +12,7 @@ use crate::config::{Config, ConfigPrivate};
 /// * contains reserved bits, generation, page and slot indexes.
 ///
 /// See [`Config`] for more details.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct Key(NonZeroU64);
 

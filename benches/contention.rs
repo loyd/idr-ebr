@@ -72,7 +72,7 @@ fn only_read(c: &mut Criterion) {
             BenchmarkId::new("idr-repin", contention),
             &contention,
             |b, _| {
-                let testee = idr_repin_testee.get_or_insert_with(|| IdrTestee::new(false));
+                let testee = idr_repin_testee.get_or_insert_with(IdrRepinTestee::new);
                 b.iter_custom(|iter_count| run(contention, iter_count, testee));
             },
         );
@@ -81,7 +81,7 @@ fn only_read(c: &mut Criterion) {
             BenchmarkId::new("idr-pin-once", contention),
             &contention,
             |b, _| {
-                let testee = idr_pin_once_testee.get_or_insert_with(|| IdrTestee::new(true));
+                let testee = idr_pin_once_testee.get_or_insert_with(IdrPinOnceTestee::new);
                 b.iter_custom(|iter_count| run(contention, iter_count, testee));
             },
         );
@@ -102,41 +102,69 @@ fn only_read(c: &mut Criterion) {
     }
     group.finish();
 
-    struct IdrTestee {
+    fn make_idr() -> (idr_ebr::Idr<Value>, idr_ebr::Key) {
+        let idr = idr_ebr::Idr::new();
+        let mut key = None;
+
+        for i in 0u64..1_000 {
+            let k = idr.insert(Value(i)).unwrap();
+
+            if i == 500 {
+                assert_eq!(idr.get(k, &idr_ebr::Guard::new()).unwrap().0, i); // sanity check
+                key = Some(k);
+            }
+        }
+
+        (idr, key.unwrap())
+    }
+
+    struct IdrRepinTestee {
         idr: idr_ebr::Idr<Value>,
         key: idr_ebr::Key,
-        pin_once: bool,
     }
 
-    impl IdrTestee {
-        fn new(pin_once: bool) -> Self {
-            let idr = idr_ebr::Idr::new();
-            let mut key = None;
-
-            for i in 0u64..1_000 {
-                let k = idr.insert(Value(i)).unwrap();
-
-                if i == 500 {
-                    assert_eq!(idr.get(k).unwrap().0, i); // sanity check
-                    key = Some(k);
-                }
-            }
-
-            let key = key.unwrap();
-            Self { idr, key, pin_once }
+    impl IdrRepinTestee {
+        fn new() -> Self {
+            let (idr, key) = make_idr();
+            Self { idr, key }
         }
     }
 
-    impl Testee for IdrTestee {
-        type State = Option<scc::ebr::Guard>;
+    impl Testee for IdrRepinTestee {
+        type State = ();
+
+        fn make_state(&self, _thread_no: u32) {
+            let _guard = idr_ebr::Guard::new(); // warm up
+        }
+
+        fn exec(&self, (): &mut Self::State) {
+            let key = black_box(self.key);
+            black_box(self.idr.get(key, &idr_ebr::Guard::new()));
+        }
+    }
+
+    struct IdrPinOnceTestee {
+        idr: idr_ebr::Idr<Value>,
+        key: idr_ebr::Key,
+    }
+
+    impl IdrPinOnceTestee {
+        fn new() -> Self {
+            let (idr, key) = make_idr();
+            Self { idr, key }
+        }
+    }
+
+    impl Testee for IdrPinOnceTestee {
+        type State = idr_ebr::Guard;
 
         fn make_state(&self, _thread_no: u32) -> Self::State {
-            let guard = scc::ebr::Guard::new(); // warm up
-            self.pin_once.then_some(guard)
+            idr_ebr::Guard::new()
         }
 
-        fn exec(&self, _: &mut Self::State) {
-            black_box(self.idr.get(self.key));
+        fn exec(&self, guard: &mut Self::State) {
+            let key = black_box(self.key);
+            black_box(self.idr.get(key, guard));
         }
     }
 
@@ -170,7 +198,8 @@ fn only_read(c: &mut Criterion) {
         fn make_state(&self, _thread_no: u32) -> Self::State {}
 
         fn exec(&self, (): &mut Self::State) {
-            black_box(self.slab.get(self.key));
+            let key = black_box(self.key);
+            black_box(self.slab.get(key));
         }
     }
 
