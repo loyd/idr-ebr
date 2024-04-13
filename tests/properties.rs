@@ -7,7 +7,6 @@
 //! * `RESERVED_BITS` are actually not used.
 //!
 //! The test is supposed to be deterministic.
-//! TODO: but it's not because of `insert()` randomization.
 //!
 //! We're not checking concurrency issues here, they should be covered by loom
 //! tests anyway. Thus, it's fine to run all actions consequently.
@@ -44,7 +43,7 @@ fn action_strategy() -> impl Strategy<Value = Action> {
 }
 
 fn key_strategy() -> impl Strategy<Value = Key> {
-    (1u64..u64::MAX).prop_map(|v| NonZeroU64::new(v).unwrap().into())
+    (1u64..u64::from(u16::MAX)).prop_map(|v| NonZeroU64::new(v).unwrap().into())
 }
 
 /// Stores active entries (added and not yet removed).
@@ -201,14 +200,24 @@ proptest! {
     }
 
     #[test]
-    fn custom_config(actions in prop::collection::vec(action_strategy(), ACTIONS)) {
-        run::<CustomConfig>(actions)?;
+    fn medium_config(actions in prop::collection::vec(action_strategy(), ACTIONS)) {
+        run::<MediumConfig>(actions)?;
+    }
+
+    #[test]
+    fn tiny_config(actions in prop::collection::vec(action_strategy(), ACTIONS)) {
+        run::<TinyConfig>(actions)?;
     }
 }
 
-struct CustomConfig;
-impl Config for CustomConfig {
-    const INITIAL_PAGE_SIZE: u32 = 32;
+struct MediumConfig;
+impl Config for MediumConfig {
     const MAX_PAGES: u32 = 20;
     const RESERVED_BITS: u32 = 24;
+}
+
+struct TinyConfig;
+impl Config for TinyConfig {
+    const INITIAL_PAGE_SIZE: u32 = 4;
+    const RESERVED_BITS: u32 = 3;
 }
