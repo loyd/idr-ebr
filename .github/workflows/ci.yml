@@ -11,17 +11,20 @@ env:
   RUSTFLAGS: -Dwarnings
   RUST_BACKTRACE: 1
 
+# TODO: check also i686-unknown-linux-musl
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - run: rustup show active-toolchain -v
     - run: cargo build --all-targets --all-features
 
   rustfmt:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - run: rustup show active-toolchain -v
     - run: rustup component add rustfmt
     - run: cargo fmt --version
     - run: cargo fmt -- --check
@@ -29,7 +32,8 @@ jobs:
   clippy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - run: rustup show active-toolchain -v
     - run: rustup component add clippy
     - run: cargo clippy --version
     - run: cargo clippy --all-targets --all-features
@@ -38,7 +42,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - run: rustup show active-toolchain -v
     - run: cargo test
 
   loom:
@@ -47,11 +52,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - name: Run Loom tests
-        run: ./bin/loom.sh
+      - run: rustup show active-toolchain -v
+      - run: ./bin/loom.sh
