@@ -54,3 +54,18 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup show active-toolchain -v
       - run: ./tests/loom.sh
+
+  miri:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      # stacked borrows: https://github.com/wvwwvwwv/scalable-concurrent-containers/issues/88
+      # memory leaks: EBR collector isn't triggered in most tests
+      MIRIFLAGS: -Zmiri-disable-stacked-borrows -Zmiri-ignore-leaks
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install nightly --component miri
+      - run: rustup override set nightly
+      - run: rustup show active-toolchain -v
+      - run: cargo miri setup
+      - run: cargo miri test

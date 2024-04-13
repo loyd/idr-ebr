@@ -22,6 +22,7 @@ fn reserved() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn invalid() {
     let t = trybuild::TestCases::new();
     // WA for https://github.com/dtolnay/trybuild/issues/258

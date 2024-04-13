@@ -11,6 +11,8 @@
 //! We're not checking concurrency issues here, they should be covered by loom
 //! tests anyway. Thus, it's fine to run all actions consequently.
 
+#![cfg(not(miri))]
+
 use std::ops::Range;
 
 use indexmap::IndexMap;
