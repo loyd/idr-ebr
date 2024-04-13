@@ -68,8 +68,8 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// value was inserted. This key can then be used to access the entry.
     ///
     /// This method is, usually, lock-free. However, it can block if a new page
-    /// should be allocated. Once allocated, the page is never deallocated.
-    /// Thus, it can block no more than [`Config::MAX_PAGES`] times.
+    /// should be allocated. Thus, it can block max [`Config::MAX_PAGES`] times.
+    /// Once allocated, the page is never deallocated until the IDR is dropped.
     ///
     /// Returns `None` if there is no more space in the IDR,
     /// and no items can be added until some are removed.
@@ -99,8 +99,8 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// Returns a handle to a vacant entry allowing for further manipulation.
     ///
     /// This method is, usually, lock-free. However, it can block if a new page
-    /// should be allocated. Once allocated, the page is never deallocated.
-    /// Thus, it can block no more than [`Config::MAX_PAGES`] times.
+    /// should be allocated. Thus, it can block max [`Config::MAX_PAGES`] times.
+    /// Once allocated, the page is never deallocated until the IDR is dropped.
     ///
     /// This method is useful when creating values that must contain their
     /// IDR key. The returned [`VacantEntry`] reserves a slot in the IDR and
