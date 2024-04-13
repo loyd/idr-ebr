@@ -121,7 +121,7 @@ fn reuse() {
 #[test]
 fn invalid_key() {
     let idr = Idr::<i32>::default();
-    let invalid_key = Key::from(std::num::NonZeroU64::new(1).unwrap());
+    let invalid_key = Key::try_from(1).unwrap();
 
     // Shouldn't panic.
     idr.get(invalid_key, &Guard::new());

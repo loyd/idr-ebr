@@ -90,6 +90,20 @@ impl From<Key> for NonZeroU64 {
     }
 }
 
+impl TryFrom<u64> for Key {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(raw: u64) -> Result<Self, Self::Error> {
+        NonZeroU64::try_from(raw).map(Into::into)
+    }
+}
+
+impl From<Key> for u64 {
+    fn from(key: Key) -> u64 {
+        key.0.get()
+    }
+}
+
 // === PageNo ===
 
 #[repr(transparent)]

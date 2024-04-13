@@ -11,7 +11,7 @@
 //! We're not checking concurrency issues here, they should be covered by loom
 //! tests anyway. Thus, it's fine to run all actions consequently.
 
-use std::{num::NonZeroU64, ops::Range};
+use std::ops::Range;
 
 use indexmap::IndexMap;
 use proptest::prelude::*;
@@ -43,7 +43,7 @@ fn action_strategy() -> impl Strategy<Value = Action> {
 }
 
 fn key_strategy() -> impl Strategy<Value = Key> {
-    (1u64..u64::from(u16::MAX)).prop_map(|v| NonZeroU64::new(v).unwrap().into())
+    (1u64..u64::from(u16::MAX)).prop_map(|v| Key::try_from(v).unwrap())
 }
 
 /// Stores active entries (added and not yet removed).
@@ -102,9 +102,9 @@ impl Active {
 fn used_bits<C: Config>(key: Key) -> Key {
     assert_eq!(C::RESERVED_BITS + Idr::<u32, C>::USED_BITS, 64);
 
-    let raw_key = NonZeroU64::from(key).get();
+    let raw_key = u64::from(key);
     let refined = raw_key & ((!0) >> C::RESERVED_BITS);
-    NonZeroU64::new(refined).unwrap().into()
+    Key::try_from(refined).unwrap()
 }
 
 #[allow(clippy::needless_pass_by_value)]

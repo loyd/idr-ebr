@@ -11,7 +11,6 @@ use crate::{
     },
 };
 
-// TODO: use loom Track
 pub(crate) struct Slot<T, C> {
     generation: AtomicU32,
     next_free: AtomicU32, // MAX means no next
@@ -38,6 +37,7 @@ impl<T: 'static, C: Config> Slot<T, C> {
         // It's impossible to reach this point for the same slot concurrently.
         // Thus, we can use `swap` (`xchgl` on x86-64) here as a cheaper alternative to
         // `compare_exchange` (`lock cmpxchgl` on x86-64).
+        // NOTE: `scc::ebr::AtomicShared` doesn't support `store()`.
         let (old_data, _) = self.data.swap(pair, Ordering::Release);
         debug_assert!(old_data.is_none());
     }

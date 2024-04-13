@@ -33,9 +33,25 @@ jobs:
     - run: rustup component add clippy
     - run: cargo clippy --version
     - run: cargo clippy --all-targets --all-features
+    - run: RUSTFLAGS="$RUSTFLAGS --cfg loom" cargo clippy --all-targets --all-features
 
   test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - run: cargo test
+
+  loom:
+    name: Loom tests (stable)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Run Loom tests
+        run: ./bin/loom.sh
