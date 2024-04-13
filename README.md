@@ -16,23 +16,23 @@
 
 An IDR (IDentifier Resolver) provides a way to efficiently and concurrently
 map integer IDs to references to objects. It's particularly useful in
-scenarios where you need to quickly find objects based on their ID:
+scenarios where you need to find objects based on their ID quickly:
 * IDs are shared among multiple machines or stored on FS
 * IDs used for FFI
-* IDs are used as cheap replacement for `Weak` smart pointers
+* IDs are used as a cheap replacement for `Weak` smart pointers
 
 The main goal of this crate is to provide a structure for fast getting objects by their IDs.
 The most popular solution for this problem is concurrent slabs.
 However, an interesting problem concurrent collections deal with comes from the remove operation.
-Suppose that a thread removes an element from some lock-free slab, while another thread is reading
+Suppose that a thread removes an element from some lock-free slab while another thread is reading
 that same element at the same time. The first thread must wait until the second thread stops
-reading the element. Only then it is safe to destruct it. Thus, every read operation should
+reading the element. Only then is it safe to destroy it. Thus, every read operation should
 actually modify memory in order to tell other threads that the item is accessed right now.
 It can lead to high contention and, hence, a huge performance penalty (see benchmarks below)
 even if many threads mostly read and don't change data.
 
 The modern solution for this problem is [EBR] (Epoch-Based memory Reclamation).
-This crate based on EBR of the [`scc`] crate rather than [`crossbeam-epoch`], because it's more efficient.
+This crate is based on the EBR of the [`scc`] crate rather than [`crossbeam-epoch`] because it's more efficient.
 
 Every insertion allocates a new EBR container. Thus, it's preferable to use a strong modern allocator (e.g. [`mimalloc`]) if insertions are frequent.
 
@@ -47,7 +47,7 @@ check [`sharded-slab`], it's the efficient and well-tested implementation of a c
 
 ## Examples
 
-Inserting an item into the IDR, returning a key:
+Inserting an item into the IDR, and returning a key:
 ```rust
 use idr_ebr::{Idr, Guard};
 
@@ -70,7 +70,7 @@ Therefore, testing should be as complete as possible, which is why many tools ar
 
 In order to guard against the [ABA] problem, this crate makes use of
 _generational indices_. Each slot in the underlying slab tracks a generation
-counter which is incremented every time a value is removed from that slot,
+counter, which is incremented every time a value is removed from that slot,
 and the keys returned by `Idr::insert()` include the generation of the slot
 when the value was inserted, packed into the high-order bits of the key.
 This ensures that if a value is inserted, removed, and a new value is inserted
@@ -80,7 +80,7 @@ to `insert` will not map to the new value.
 Since a fixed number of bits are set aside to use for storing the generation
 counter, the counter will wrap around after being incremented a number of
 times. To avoid situations where a returned index lives long enough to see the
-generation counter wrap around to the same value, it is good to be fairly
+generation counter wraps around to the same value, it is good to be fairly
 generous when configuring the allocation of key bits.
 
 [`loom`]: https://crates.io/crates/loom
@@ -93,23 +93,23 @@ generous when configuring the allocation of key bits.
 These graphs were produced by [benchmarks] using the [`criterion`] crate.
 
 The first shows the results of the `read_only` benchmark where an increasing
-number of threads accessing the same slot, that leads to high contention.
+number of threads accessing the same slot, which leads to high contention.
 It compares the performance of the IDR with [`sharded-slab`] and simple `std::sync::Weak::upgrade()`:
 
-TODO
+![image](https://github.com/loyd/idr-ebr/assets/952180/099c1ef1-8120-460b-9b7b-83c09834dfb4)
 
 * `idr-pin-once`: one `Guard::new()` for all accesses
 * `idr-repin`: new `Guard::new()` on every access
 * `weak`: `std::sync::Weak::upgrade()`
 * `sharded-slab`: `Slab` with default parameters in the [`sharded-slab`] crate
 
-This benchmark demonstrate that the IDR doesn't create any contention on `get()` at all.
+This benchmark demonstrates that the IDR doesn't create any contention on `get()` at all.
 
 The second graph shows the results of the `insert_remove` benchmark where an increasing
 number of threads insert and remove entries from the IDR. As mentioned before, it's not the goal
-of this crate and not optimized yet for this reason.
+of this crate, and not optimized yet for this reason.
 
-TODO
+![image](https://github.com/loyd/idr-ebr/assets/952180/429a60ae-f7ee-470f-a9ef-9b62af077b1a)
 
 * `idr`: the `IDR` structure from this crate
 * `sharded-slab`: `Slab` from the [`sharded-slab`] crate
@@ -119,11 +119,11 @@ TODO
 
 ## Implementation
 
-The IDR is based on a slab, where every slot contain a link to EBR container.
+The IDR is based on a slab, where every slot contains a link to the EBR container.
 Thus, every `Idr::insert()` calls an allocator to create that container.
 
-The container can be used by multiple threads both in temporary way (`Idr::get()` or `Idr::iter()`)
-and permanently (`Idr::get_owned()`) even when IDR is already dropped or an entry is removed from the IDR.
+The container can be used by multiple threads both in a temporary way (`Idr::get()` or `Idr::iter()`)
+and permanently (`Idr::get_owned()`) even when the IDR is already dropped or an entry is removed from the IDR.
 
 ```text
 IDR                 ┌─────────┐
@@ -150,7 +150,7 @@ IDR                 ┌─────────┐
                          └──────────┘
 ```
 
-The size of the first page in a shard is always a power of two, and every subsequent page added after the first is twice as large as the page that preceeds it.
+The size of the first page in a shard is always a power of two, and every subsequent page added after the first is twice as large as the page that precedes it.
 ```text
            IPS
   page    ◄───►
