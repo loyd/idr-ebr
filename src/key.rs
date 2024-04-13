@@ -21,7 +21,7 @@ impl Key {
     ///
     /// Both parameters cannot be zero.
     pub(crate) unsafe fn new_unchecked<C: Config>(slot_id: u32, generation: Generation<C>) -> Self {
-        debug_assert!(slot_id > 0);
+        debug_assert!(0 < slot_id && slot_id <= C::SLOT_MASK);
         let raw = u64::from(generation.to_u32()) << C::SLOT_BITS | u64::from(slot_id);
         Self(NonZeroU64::new_unchecked(raw))
     }
@@ -58,7 +58,12 @@ impl Key {
         //                '---------------------'
         //                         cached
 
-        let page_no = 32 - C::INITIAL_PAGE_SIZE.trailing_zeros() - 1 - slot_id.leading_zeros();
+        let base = 32 - C::INITIAL_PAGE_SIZE.trailing_zeros() - 1;
+        let lz_repr = slot_id.leading_zeros();
+
+        // For valid keys, `base - lz_repr` is enough.
+        // However, keys can be created from `u64`, so the page bit can be unset.
+        let page_no = base.wrapping_sub(lz_repr);
 
         PageNo::new(page_no)
     }
