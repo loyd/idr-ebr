@@ -5,14 +5,18 @@ use scc::ebr;
 use crate::{
     config::Config,
     key::{Generation, Key},
-    loom::sync::atomic::{AtomicU32, Ordering},
+    loom::{
+        sync::atomic::{AtomicU32, Ordering},
+        AtomicShared, ExclTrack,
+    },
 };
 
 // TODO: use loom Track
 pub(crate) struct Slot<T, C> {
     generation: AtomicU32,
     next_free: AtomicU32, // MAX means no next
-    data: ebr::AtomicShared<T>,
+    data: AtomicShared<T>,
+    exclusive: ExclTrack, // loom only
     _config: PhantomData<C>,
 }
 
@@ -21,39 +25,71 @@ impl<T: 'static, C: Config> Slot<T, C> {
         Self {
             generation: AtomicU32::new(0),
             next_free: AtomicU32::new(next_free),
-            data: ebr::AtomicShared::null(),
+            data: AtomicShared::null(),
+            exclusive: ExclTrack::new(),
             _config: PhantomData,
         }
     }
 
     pub(crate) fn init(&self, value: T) {
+        let _track = self.exclusive.ensure();
         let pair = (Some(ebr::Shared::new(value)), ebr::Tag::None);
+
+        // It's impossible to reach this point for the same slot concurrently.
+        // Thus, we can use `swap` (`xchgl` on x86-64) here as a cheaper alternative to
+        // `compare_exchange` (`lock cmpxchgl` on x86-64).
         let (old_data, _) = self.data.swap(pair, Ordering::Release);
         debug_assert!(old_data.is_none());
     }
 
-    pub(crate) fn uninit(&self) -> bool {
-        let (unreachable, _) = self.data.swap((None, ebr::Tag::None), Ordering::Release);
+    pub(crate) fn uninit(&self, key: Key) -> bool {
+        // For now, `impl Drop for Shared` uses a special guard, which doesn't clean up.
+        // It can cause OOM if a thread is alive for a long time and doesn't use a
+        // normal guard via `Idr::get()` or directly (see `insert_remove` benchmark).
+        // TODO: create an issue in scc. However, it's still required for `get()`.
+        let guard = ebr::Guard::new();
 
-        if let Some(unreachable) = unreachable {
-            // For now, `impl Drop for Shared` uses a special guard, which doesn't clean up.
-            // It can cause OOM if a thread is alive for a long time and doesn't use a
-            // normal guard via `Idr::get()` or directly (see `insert_remove` benchmark).
-            // TODO: create an issue in scc.
-            let _ = unreachable.release(&ebr::Guard::new());
-        } else {
+        // Check if this slot corresponds to the key.
+        let ptr = self.get(key, &guard);
+        if ptr.is_null() {
             return false;
         }
 
-        let gen = self.generation.load(Ordering::Relaxed);
-        let new_gen = Generation::<C>::new(gen).inc();
-        self.generation.store(new_gen.to_u32(), Ordering::Release);
+        // Try to replace the data pointer with the null pointer
+        // in order to make it unreachable via IDR for other threads.
+        //
+        // It fails if another thread removed or even replaced the same slot
+        // concurrently after this one called `get()` above.
+        //
+        // There is no ABA problem with the data pointer here because
+        // the data pointer cannot be reused until the EBR guard is dropped.
+        let Ok((unreachable, _)) = self.data.compare_exchange(
+            ptr,
+            (None, ebr::Tag::None),
+            Ordering::AcqRel,
+            Ordering::Relaxed,
+            &guard,
+        ) else {
+            // If either the slot was removed or replaced, simply return.
+            // We don't need to retry or check generation in this case.
+            return false;
+        };
+
+        // It's impossible to reach this point for the same slot concurrently.
+        let _track = self.exclusive.ensure();
+        let _ = unreachable.unwrap().release(&guard);
+
+        // We can use `store` instead of CAS here because:
+        // * This code is executed only by one thread.
+        // * This is the only place where the generation is changed.
+        let new_generation = key.generation::<C>().inc().to_u32();
+        self.generation.store(new_generation, Ordering::Relaxed);
 
         true
     }
 
     pub(crate) fn generation(&self) -> Generation<C> {
-        let gen = self.generation.load(Ordering::Acquire);
+        let gen = self.generation.load(Ordering::Relaxed);
         Generation::<C>::new(gen)
     }
 
@@ -67,7 +103,7 @@ impl<T: 'static, C: Config> Slot<T, C> {
 
     pub(crate) fn get<'g>(&self, key: Key, guard: &'g ebr::Guard) -> ebr::Ptr<'g, T> {
         let data = self.data.load(Ordering::Acquire, guard);
-        let generation = self.generation.load(Ordering::Acquire);
+        let generation = self.generation.load(Ordering::Relaxed);
 
         if key.generation::<C>() != Generation::<C>::new(generation) {
             return ebr::Ptr::null();
