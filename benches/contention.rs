@@ -1,4 +1,4 @@
-#![allow(missing_docs, clippy::items_after_statements, clippy::too_many_lines)]
+#![allow(missing_docs, clippy::too_many_lines)]
 
 use std::{
     str::FromStr,

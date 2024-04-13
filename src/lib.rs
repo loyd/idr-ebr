@@ -204,7 +204,6 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// # Example
     ///
     /// ```
-    /// # use std::num::NonZeroU64;
     /// use idr_ebr::{Idr, Guard};
     ///
     /// let idr = Idr::default();
@@ -219,7 +218,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// assert_eq!(entry, "foo");
     ///
     /// // Getting entry for an unknown key produces None.
-    /// assert!(idr.get(NonZeroU64::new(12345).unwrap().into(), &guard).is_none());
+    /// assert!(idr.get(Key::try_from(12345).unwrap(), &guard).is_none());
     /// ```
     #[inline]
     pub fn get<'g>(&self, key: Key, guard: &'g Guard) -> Option<BorrowedEntry<'g, T>> {

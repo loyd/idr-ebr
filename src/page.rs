@@ -37,7 +37,7 @@ impl<T: 'static, C: Config> Page<T, C> {
     ///
     /// The provided slot must belong to this page.
     pub(crate) unsafe fn add_free(&self, slot: &Slot<T, C>) {
-        let slots_ptr = self.slots.load(Ordering::Relaxed);
+        let slots_ptr = self.slots.load(Ordering::Acquire);
         debug_assert!(!slots_ptr.is_null());
 
         let mut free_head = self.free_head.load(Ordering::Acquire);
@@ -54,7 +54,6 @@ impl<T: 'static, C: Config> Page<T, C> {
             let slot_index = slot_index as u32;
             debug_assert!(slot_index < self.capacity);
 
-            // TODO: ordering
             if let Err(new_free_head) = self.free_head.compare_exchange(
                 free_head,
                 slot_index,
@@ -70,7 +69,7 @@ impl<T: 'static, C: Config> Page<T, C> {
 
     pub(crate) fn reserve(&self, page_control: &PageControl) -> Option<(Key, &Slot<T, C>)> {
         let slots_ptr =
-            page_control.get_or_lock(|| self.slots.load(Ordering::Relaxed), || self.allocate());
+            page_control.get_or_lock(|| self.slots.load(Ordering::Acquire), || self.allocate());
 
         let mut free_head = self.free_head.load(Ordering::Acquire);
         let (slot_index, slot) = loop {
@@ -87,7 +86,6 @@ impl<T: 'static, C: Config> Page<T, C> {
             let next_free_head = slot.next_free();
             debug_assert!(next_free_head == u32::MAX || next_free_head < self.capacity);
 
-            // TODO: ordering
             if let Err(new_free_head) = self.free_head.compare_exchange(
                 free_head,
                 next_free_head,
@@ -107,7 +105,7 @@ impl<T: 'static, C: Config> Page<T, C> {
     }
 
     pub(crate) fn remove(&self, key: Key) -> bool {
-        let slots_ptr = self.slots.load(Ordering::Relaxed);
+        let slots_ptr = self.slots.load(Ordering::Acquire);
         if slots_ptr.is_null() {
             return false;
         }
@@ -119,7 +117,7 @@ impl<T: 'static, C: Config> Page<T, C> {
         // SAFETY: Both the starting and resulting pointer is in bounds of the same
         // allocated object, because `slot_id` belongs to this page.
         let slot = unsafe { &*slots_ptr.add(slot_index as usize) };
-        if !slot.uninit() {
+        if !slot.uninit(key) {
             return false;
         }
 
@@ -129,7 +127,8 @@ impl<T: 'static, C: Config> Page<T, C> {
     }
 
     pub(crate) fn get<'g>(&self, key: Key, guard: &'g ebr::Guard) -> Option<BorrowedEntry<'g, T>> {
-        let slots_ptr = self.slots.load(Ordering::Relaxed);
+        // TODO: `crossbeam_utils::AtomicConsume`?
+        let slots_ptr = self.slots.load(Ordering::Acquire);
         if slots_ptr.is_null() {
             return None;
         }
@@ -146,7 +145,7 @@ impl<T: 'static, C: Config> Page<T, C> {
     /// Iterates over occupied slots, or `None` if the page isn't allocated.
     #[allow(clippy::iter_not_returning_iterator)]
     pub(crate) fn iter<'g>(&self, guard: &'g ebr::Guard) -> Option<Iter<'g, '_, T, C>> {
-        let slots_ptr = self.slots.load(Ordering::Relaxed);
+        let slots_ptr = self.slots.load(Ordering::Acquire);
         if slots_ptr.is_null() {
             return None;
         }
@@ -199,13 +198,13 @@ impl<T: 'static, C: Config> Page<T, C> {
         }
 
         debug_assert!(self.slots.load(Ordering::Relaxed).is_null());
-        self.slots.store(slots_ptr, Ordering::Relaxed);
+        self.slots.store(slots_ptr, Ordering::Release);
     }
 }
 
 impl<T, C> Drop for Page<T, C> {
     fn drop(&mut self) {
-        let slots_ptr = self.slots.load(Ordering::Relaxed);
+        let slots_ptr = self.slots.load(Ordering::Acquire);
 
         if slots_ptr.is_null() {
             return;

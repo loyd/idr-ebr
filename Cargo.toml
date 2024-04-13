@@ -28,6 +28,7 @@ module_name_repetitions = "allow"
 missing_panics_doc = "allow"
 cast_possible_truncation = "allow"
 similar_names = "allow"
+items_after_statements = "allow"
 
 [[bench]]
 name = "contention"
@@ -37,12 +38,16 @@ harness = false
 scc = "2"
 fastrand = "2"
 
+[target.'cfg(loom)'.dependencies]
+loom = { version = "0.7", features = ["checkpoint"] }
+
 [dev-dependencies]
 criterion = "0.5.1"
 mimalloc = { version = "0.1.29", default_features = false }
 trybuild = "1"
 proptest = "1"
 indexmap = "2"
+tracing = "0.1.40"
 sharded-slab = "0.1.7" # for benchmarking
 
 [profile.release]
