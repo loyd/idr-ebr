@@ -40,6 +40,7 @@ jobs:
     - run: RUSTFLAGS="$RUSTFLAGS --cfg loom" cargo clippy --all-targets --all-features
 
   test:
+    needs: build
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -47,10 +48,9 @@ jobs:
     - run: cargo test
 
   loom:
-    name: Loom tests (stable)
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: rustup show active-toolchain -v
-      - run: ./bin/loom.sh
+      - run: ./tests/loom.sh

@@ -204,7 +204,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// # Example
     ///
     /// ```
-    /// use idr_ebr::{Idr, Guard};
+    /// use idr_ebr::{Idr, Guard, Key};
     ///
     /// let idr = Idr::default();
     /// let key = idr.insert("foo").unwrap();
