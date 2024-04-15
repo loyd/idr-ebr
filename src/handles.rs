@@ -78,8 +78,6 @@ impl<T, C: Config> fmt::Debug for VacantEntry<'_, T, C> {
 #[must_use]
 pub struct BorrowedEntry<'g, T>(ebr::Ptr<'g, T> /* non-null */);
 
-// TODO: unchecked versions
-
 impl<'g, T> BorrowedEntry<'g, T> {
     pub(crate) fn new(ptr: ebr::Ptr<'g, T>) -> Option<Self> {
         (!ptr.is_null()).then_some(Self(ptr))
@@ -92,19 +90,18 @@ impl<'g, T> BorrowedEntry<'g, T> {
     ///
     /// See [`OwnedEntry`] for more details.
     #[inline]
-    pub fn to_owned(&self) -> OwnedEntry<T> {
-        OwnedEntry(self.0.get_shared().unwrap())
+    pub fn to_owned(self) -> OwnedEntry<T> {
+        let maybe_shared = self.0.get_shared();
+
+        // SAFETY: The pointer is non-null, checked in `new()`.
+        OwnedEntry(unsafe { maybe_shared.unwrap_unchecked() })
     }
 
-    /// Converts the handle to an owned handle to the entry.
-    ///
-    /// This method is lock-free, but it modifies the memory by incrementing the
-    /// reference counter.
-    ///
-    /// See [`OwnedEntry`] for more details.
+    #[doc(hidden)]
+    #[deprecated(note = "use `to_owned()` instead")]
     #[inline]
     pub fn into_owned(self) -> OwnedEntry<T> {
-        OwnedEntry(self.0.get_shared().unwrap())
+        self.to_owned()
     }
 }
 
@@ -122,13 +119,16 @@ impl<T> Deref for BorrowedEntry<'_, T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().unwrap()
+        let maybe_ref = self.0.as_ref();
+
+        // SAFETY: The pointer is non-null, checked in `new()`.
+        unsafe { maybe_ref.unwrap_unchecked() }
     }
 }
 
 impl<T: fmt::Debug> fmt::Debug for BorrowedEntry<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self.0.as_ref().unwrap(), f)
+        fmt::Debug::fmt(&**self, f)
     }
 }
 

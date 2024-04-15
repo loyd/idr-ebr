@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement `Clone` and `Copy` for `BorrowedEntry`.
 - Implement `Clone` for `OwnedEntry`.
 
+### Changed
+- Avoid useless non-null checks in `BorrowedEntry`.
+- Deprecated `BorrowedEntry::into_owned()` in favor of `BorrowedEntry::to_owned()`.
+
 ## [0.1.0] - 2024-04-13
 ### Added
 - Feuer Frei!

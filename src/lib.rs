@@ -264,7 +264,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// ```
     #[inline]
     pub fn get_owned(&self, key: Key) -> Option<OwnedEntry<T>> {
-        self.get(key, &Guard::new()).map(BorrowedEntry::into_owned)
+        self.get(key, &Guard::new()).map(BorrowedEntry::to_owned)
     }
 
     /// Returns `true` if the IDR contains an entry for the given key.
