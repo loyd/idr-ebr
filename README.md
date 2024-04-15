@@ -18,8 +18,8 @@ An IDR (IDentifier Resolver) provides a way to efficiently and concurrently
 map integer IDs to references to objects. It's particularly useful in
 scenarios where you need to find objects based on their ID quickly:
 * IDs are shared among multiple machines or stored on FS
-* IDs used for FFI
-* IDs are used as a cheap replacement for `Weak` smart pointers
+* IDs are used as a cheaper replacement for `Weak` smart pointers
+* IDs are used for FFI with untrusted code
 
 The main goal of this crate is to provide a structure for fast getting objects by their IDs.
 The most popular solution for this problem is concurrent slabs.
@@ -125,42 +125,56 @@ Thus, every `Idr::insert()` calls an allocator to create that container.
 The container can be used by multiple threads both in a temporary way (`Idr::get()` or `Idr::iter()`)
 and permanently (`Idr::get_owned()`) even when the IDR is already dropped or an entry is removed from the IDR.
 
+The IDR structure:
 ```text
-IDR                 ┌─────────┐
- #──►┌───────────┐  │    ┌────▼─────┐
-     │  page 1   │  │  ┌─┤   next   │
-     ├───────────┤  │  │ ├──────────┤
-     │  page 2   │  │  │ │generation│
-     │           │  │  │ ├──────────┤
-     │ free head ├──┘  │ │  vacant  │
-     ├───────────┤     │ ├──────────┤
-     │  page 3   │     │ ├──────────┤
-     └───────────┘     │ │   next   │
-          ...          │ ├──────────┤          EBR
-          ...          │ │generation│       container
-     ┌───────────┐     │ ├──────────┤      ┌─────────┐
-     │  page n   │     │ │ occupied ├──────► ref cnt │
-     └───────────┘     │ ├──────────┤      ├─────────┤
-                       │ ├──────────┤      │         │
-      (pages are       └─►   next   │      │  data   │
-       lazily            ├──────────┤      │         │
-       allocated)        │generation│      └─────────┘
-                         ├──────────┤
-                         │  vacant  │
-                         └──────────┘
+IDR     pages               slots
+ #─►┌───────────┐  ┌───►┌──────────┐
+    │  page #0  │  │  ┌►│   next   │
+    ├───────────┤  │  │ ├──────────┤
+    │  page #1  │  │  │ │generation│
+    │   slots  ─┼──┘  │ ├──────────┤
+    │ free head ┼──┐  │ │  vacant  │
+    ├───────────┤  │  │ ╞══════════╡
+    │  page #2  │  │  │ │   next   │
+    └───────────┘  │  │ ├──────────┤      EBR-protected
+         ...       │  │ │generation│        container
+         ...       │  │ ├──────────┤      ┌───────────┐
+    ┌───────────┐  │  │ │ occupied ├─────►│  strong   │
+    │ page #M-1 │  │  │ ╞══════════╡      │ reference │
+    └───────────┘  │  └─┼─  next   │      │  counter  │
+                   └───►├──────────┤      ├───────────┤
+     (pages are         │generation│      │           │
+      lazily            ├──────────┤      │   value   │
+      allocated)        │  vacant  │      │           │
+                        └──────────┘      └───────────┘
 ```
 
-The size of the first page in a shard is always a power of two, and every subsequent page added after the first is twice as large as the page that precedes it.
+The size of the first page in a shard is always a power of two, and every subsequent page added after the first is twice as large as the page that precedes it:
 ```text
-           IPS
-  page    ◄───►
-  ┌───┐   ┌─┬─┐
-  │ 0 ├───▶ │ │
-  ├───┤   ├─┼─┼─┬─┐        slots
-  │ 1 ├───▶ │ │ │ │
-  ├───┤   ├─┼─┼─┼─┼─┬─┬─┬─┐
-  │ 2 ├───▶ │ │ │ │ │ │ │ │
-  ├───┤   ├─┼─┼─┼─┼─┼─┼─┼─┼─┬─┬─┬─┬─┬─┬─┬─┐
-  │ 3 ├───▶ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │
-  └───┘   └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+    pages               slots                  capacity
+    ┌────┐   ┌─┬─┐
+    │ #0 ├───▶ │x│                               1IPS
+    ├────┤   ├─┼─┼─┬─┐
+    │ #1 ├───▶ │x│x│ │                           2IPS
+    ├────┤   ├─┼─┼─┼─┼─┬─┬─┬─┐
+    │ #2 ├───▶ │x│ │x│x│x│ │ │                   4IPS
+    ├────┤   ├─┼─┼─┼─┼─┼─┼─┼─┼─┬─┬─┬─┬─┬─┬─┬─┐
+    │#M-1├───▶ │ │x│ │x│x│x│ │ │x│ │x│x│x│ │ │   8IPS
+    └────┘   └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 ```
+where
+* `IPS` is `Config::INITIAL_PAGE_SIZE` (32 by default)
+* `M` is `Config::MAX_PAGES` (27 by default)
+* `x` is occupied slots
+
+The `Key` structure:
+```text
+             Key Structure (64b)
+    ┌──────────┬────────────┬───────────┐
+    │ reserved │ generation │ page+slot │
+    │   ≤32b   │    ≤32b    │   ≤32b    │
+    │  def=0b  │  def=32b   │  def=32b  │
+    └──────────┴────────────┴───────────┘
+```
+
+Check `Config` documentation for details how to configure these parts.
