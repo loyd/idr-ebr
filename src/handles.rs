@@ -194,7 +194,7 @@ pub struct Iter<'g, 's, T, C> {
 
 impl<'g, 's, T: 'static, C: Config> Iter<'g, 's, T, C> {
     pub(crate) fn new(pages: &'s [Page<T, C>], guard: &'g ebr::Guard) -> Self {
-        let (first, rest) = pages.split_first().unwrap();
+        let (first, rest) = pages.split_first().expect("invalid MAX_PAGES");
 
         Self {
             pages: rest,

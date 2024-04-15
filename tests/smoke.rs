@@ -4,6 +4,8 @@ use idr_ebr::{Config, Guard, Idr, Key};
 fn smoke() {
     let idr: Idr<_> = Idr::default();
 
+    assert_eq!(idr.iter(&Guard::new()).count(), 0);
+
     // Insert values.
     let mut keys = (0..100)
         .map(|i| (idr.insert(i).unwrap(), i))
