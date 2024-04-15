@@ -108,6 +108,15 @@ impl<'g, T> BorrowedEntry<'g, T> {
     }
 }
 
+impl<T> Copy for BorrowedEntry<'_, T> {}
+
+impl<T> Clone for BorrowedEntry<'_, T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 impl<T> Deref for BorrowedEntry<'_, T> {
     type Target = T;
 
@@ -139,6 +148,13 @@ impl<T: PartialEq<T>> PartialEq<T> for BorrowedEntry<'_, T> {
 /// [`Idr::get_owned()`]: crate::Idr::get_owned
 #[must_use]
 pub struct OwnedEntry<T>(ebr::Shared<T>);
+
+impl<T> Clone for OwnedEntry<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl<T> Deref for OwnedEntry<T> {
     type Target = T;
