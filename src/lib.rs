@@ -2,8 +2,6 @@
 
 use std::fmt;
 
-use scc::ebr;
-
 use self::{config::ConfigPrivate, control::PageControl, key::PageNo, page::Page};
 
 mod config;
@@ -20,7 +18,7 @@ pub use self::{
     key::Key,
 };
 
-pub use ebr::Guard;
+pub use sdd::Guard;
 
 // === Idr ===
 

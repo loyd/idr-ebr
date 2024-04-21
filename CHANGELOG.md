@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- next-header -->
 
 ## [Unreleased] - ReleaseDate
+### Changed
+- Replace `scc` with `sdd` (EBR is moved to the dedicated crate).
 
 ## [0.1.1] - 2024-04-15
 ### Added

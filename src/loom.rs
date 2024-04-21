@@ -4,7 +4,7 @@ pub(crate) use self::inner::*;
 mod inner {
     pub(crate) use std::{alloc, sync, thread_local};
 
-    pub(crate) use scc::ebr::AtomicShared;
+    pub(crate) use sdd::AtomicShared;
 
     // See the mocked version below for details.
     pub(crate) struct ExclTrack;
@@ -29,10 +29,9 @@ mod inner {
 mod inner {
     pub(crate) use loom::{alloc, sync, thread_local};
 
-    use scc::ebr;
     use sync::atomic::{AtomicPtr, Ordering};
 
-    // TODO: `scc::ebr` doesn't support `loom` yet:
+    // TODO: `sdd` doesn't support `loom` yet:
     // https://github.com/wvwwvwwv/scalable-concurrent-containers/issues/133
     //
     // Until it's implemented, we use a fake atomic pointer to make it visible to
@@ -40,7 +39,7 @@ mod inner {
     pub(crate) struct AtomicShared<T> {
         ptr: AtomicPtr<T>,
         // We don't use `loom::sync` here to avoid extra permutations.
-        versions: std::sync::Mutex<Vec<ebr::Shared<T>>>,
+        versions: std::sync::Mutex<Vec<sdd::Shared<T>>>,
     }
 
     impl<T> AtomicShared<T> {
@@ -51,25 +50,25 @@ mod inner {
             }
         }
 
-        pub(crate) fn load<'g>(&self, order: Ordering, guard: &'g ebr::Guard) -> ebr::Ptr<'g, T> {
+        pub(crate) fn load<'g>(&self, order: Ordering, guard: &'g sdd::Guard) -> sdd::Ptr<'g, T> {
             let ptr = self.ptr.load(order);
             self.get_version(ptr)
-                .map_or(ebr::Ptr::null(), |s| s.get_guarded_ptr(guard))
+                .map_or(sdd::Ptr::null(), |s| s.get_guarded_ptr(guard))
         }
 
         #[allow(clippy::type_complexity)]
         pub(crate) fn compare_exchange<'g>(
             &self,
-            current: ebr::Ptr<'g, T>,
-            new: (Option<ebr::Shared<T>>, ebr::Tag),
+            current: sdd::Ptr<'g, T>,
+            new: (Option<sdd::Shared<T>>, sdd::Tag),
             success: Ordering,
             failure: Ordering,
-            guard: &'g ebr::Guard,
+            guard: &'g sdd::Guard,
         ) -> Result<
-            (Option<ebr::Shared<T>>, ebr::Ptr<'g, T>),
-            (Option<ebr::Shared<T>>, ebr::Ptr<'g, T>),
+            (Option<sdd::Shared<T>>, sdd::Ptr<'g, T>),
+            (Option<sdd::Shared<T>>, sdd::Ptr<'g, T>),
         > {
-            assert_eq!(new.1, ebr::Tag::None);
+            assert_eq!(new.1, sdd::Tag::None);
 
             let current_ptr = current.as_ptr().cast_mut();
             let new_ptr = self.add_version(new.0);
@@ -79,7 +78,7 @@ mod inner {
                     let p = shared.get_guarded_ptr(guard);
                     (Some(shared), p)
                 }
-                None => (None, ebr::Ptr::null()),
+                None => (None, sdd::Ptr::null()),
             };
 
             self.ptr
@@ -90,18 +89,18 @@ mod inner {
 
         pub(crate) fn swap(
             &self,
-            new: (Option<ebr::Shared<T>>, ebr::Tag),
+            new: (Option<sdd::Shared<T>>, sdd::Tag),
             order: Ordering,
-        ) -> (Option<ebr::Shared<T>>, ebr::Tag) {
-            assert_eq!(new.1, ebr::Tag::None);
+        ) -> (Option<sdd::Shared<T>>, sdd::Tag) {
+            assert_eq!(new.1, sdd::Tag::None);
 
             let new_ptr = self.add_version(new.0);
             let old_ptr = self.ptr.swap(new_ptr, order);
 
-            (self.get_version(old_ptr), ebr::Tag::None)
+            (self.get_version(old_ptr), sdd::Tag::None)
         }
 
-        fn get_version(&self, ptr: *mut T) -> Option<ebr::Shared<T>> {
+        fn get_version(&self, ptr: *mut T) -> Option<sdd::Shared<T>> {
             if ptr.is_null() {
                 return None;
             }
@@ -117,7 +116,7 @@ mod inner {
             Some(shared)
         }
 
-        fn add_version(&self, shared: Option<ebr::Shared<T>>) -> *mut T {
+        fn add_version(&self, shared: Option<sdd::Shared<T>>) -> *mut T {
             if let Some(shared) = shared {
                 let ptr = shared.as_ptr().cast_mut();
                 self.versions.lock().unwrap().push(shared);

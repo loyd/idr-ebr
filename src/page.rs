@@ -1,7 +1,5 @@
 use std::{ptr, slice};
 
-use scc::ebr;
-
 use crate::{
     config::Config,
     control::PageControl,
@@ -126,7 +124,7 @@ impl<T: 'static, C: Config> Page<T, C> {
         true
     }
 
-    pub(crate) fn get<'g>(&self, key: Key, guard: &'g ebr::Guard) -> Option<BorrowedEntry<'g, T>> {
+    pub(crate) fn get<'g>(&self, key: Key, guard: &'g sdd::Guard) -> Option<BorrowedEntry<'g, T>> {
         // TODO: `crossbeam_utils::AtomicConsume`?
         let slots_ptr = self.slots.load(Ordering::Acquire);
         if slots_ptr.is_null() {
@@ -144,7 +142,7 @@ impl<T: 'static, C: Config> Page<T, C> {
 
     /// Iterates over occupied slots, or `None` if the page isn't allocated.
     #[allow(clippy::iter_not_returning_iterator)]
-    pub(crate) fn iter<'g>(&self, guard: &'g ebr::Guard) -> Option<Iter<'g, '_, T, C>> {
+    pub(crate) fn iter<'g>(&self, guard: &'g sdd::Guard) -> Option<Iter<'g, '_, T, C>> {
         let slots_ptr = self.slots.load(Ordering::Acquire);
         if slots_ptr.is_null() {
             return None;
@@ -241,7 +239,7 @@ impl<T, C> Drop for Page<T, C> {
 pub(crate) struct Iter<'g, 's, T, C> {
     slots: &'s [Slot<T, C>],
     prev_slot_id: u32,
-    guard: &'g ebr::Guard,
+    guard: &'g sdd::Guard,
 }
 
 impl<'g, 's, T: 'static, C: Config> Iterator for Iter<'g, 's, T, C> {

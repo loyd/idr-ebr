@@ -1,7 +1,5 @@
 use std::{fmt, mem, ops::Deref};
 
-use scc::ebr;
-
 use crate::{
     config::Config,
     key::Key,
@@ -76,10 +74,10 @@ impl<T, C: Config> fmt::Debug for VacantEntry<'_, T, C> {
 ///
 /// [`Idr::get()`]: crate::Idr::get
 #[must_use]
-pub struct BorrowedEntry<'g, T>(ebr::Ptr<'g, T> /* non-null */);
+pub struct BorrowedEntry<'g, T>(sdd::Ptr<'g, T> /* non-null */);
 
 impl<'g, T> BorrowedEntry<'g, T> {
-    pub(crate) fn new(ptr: ebr::Ptr<'g, T>) -> Option<Self> {
+    pub(crate) fn new(ptr: sdd::Ptr<'g, T>) -> Option<Self> {
         (!ptr.is_null()).then_some(Self(ptr))
     }
 
@@ -147,7 +145,7 @@ impl<T: PartialEq<T>> PartialEq<T> for BorrowedEntry<'_, T> {
 ///
 /// [`Idr::get_owned()`]: crate::Idr::get_owned
 #[must_use]
-pub struct OwnedEntry<T>(ebr::Shared<T>);
+pub struct OwnedEntry<T>(sdd::Shared<T>);
 
 impl<T> Clone for OwnedEntry<T> {
     #[inline]
@@ -189,11 +187,11 @@ impl<T: PartialEq<T>> PartialEq<T> for OwnedEntry<T> {
 pub struct Iter<'g, 's, T, C> {
     pages: &'s [Page<T, C>],
     slots: Option<page::Iter<'g, 's, T, C>>,
-    guard: &'g ebr::Guard,
+    guard: &'g sdd::Guard,
 }
 
 impl<'g, 's, T: 'static, C: Config> Iter<'g, 's, T, C> {
-    pub(crate) fn new(pages: &'s [Page<T, C>], guard: &'g ebr::Guard) -> Self {
+    pub(crate) fn new(pages: &'s [Page<T, C>], guard: &'g sdd::Guard) -> Self {
         let (first, rest) = pages.split_first().expect("invalid MAX_PAGES");
 
         Self {

@@ -1,7 +1,5 @@
 use std::marker::PhantomData;
 
-use scc::ebr;
-
 use crate::{
     config::Config,
     key::{Generation, Key},
@@ -32,12 +30,12 @@ impl<T: 'static, C: Config> Slot<T, C> {
 
     pub(crate) fn init(&self, value: T) {
         let _track = self.exclusive.ensure();
-        let pair = (Some(ebr::Shared::new(value)), ebr::Tag::None);
+        let pair = (Some(sdd::Shared::new(value)), sdd::Tag::None);
 
         // It's impossible to reach this point for the same slot concurrently.
         // Thus, we can use `swap` (`xchgl` on x86-64) here as a cheaper alternative to
         // `compare_exchange` (`lock cmpxchgl` on x86-64).
-        // NOTE: `scc::ebr::AtomicShared` doesn't support `store()`.
+        // NOTE: `sdd::AtomicShared` doesn't support `store()`.
         let (old_data, _) = self.data.swap(pair, Ordering::Release);
         debug_assert!(old_data.is_none());
     }
@@ -46,8 +44,8 @@ impl<T: 'static, C: Config> Slot<T, C> {
         // For now, `impl Drop for Shared` uses a special guard, which doesn't clean up.
         // It can cause OOM if a thread is alive for a long time and doesn't use a
         // normal guard via `Idr::get()` or directly (see `insert_remove` benchmark).
-        // TODO: create an issue in scc. However, it's still required for `get()`.
-        let guard = ebr::Guard::new();
+        // TODO: create an issue in sdd. However, it's still required for `get()`.
+        let guard = sdd::Guard::new();
 
         // Check if this slot corresponds to the key.
         let ptr = self.get(key, &guard);
@@ -65,7 +63,7 @@ impl<T: 'static, C: Config> Slot<T, C> {
         // the data pointer cannot be reused until the EBR guard is dropped.
         let Ok((unreachable, _)) = self.data.compare_exchange(
             ptr,
-            (None, ebr::Tag::None),
+            (None, sdd::Tag::None),
             Ordering::AcqRel,
             Ordering::Relaxed,
             &guard,
@@ -101,12 +99,12 @@ impl<T: 'static, C: Config> Slot<T, C> {
         self.next_free.store(index, Ordering::Release);
     }
 
-    pub(crate) fn get<'g>(&self, key: Key, guard: &'g ebr::Guard) -> ebr::Ptr<'g, T> {
+    pub(crate) fn get<'g>(&self, key: Key, guard: &'g sdd::Guard) -> sdd::Ptr<'g, T> {
         let data = self.data.load(Ordering::Acquire, guard);
         let generation = self.generation.load(Ordering::Relaxed);
 
         if key.generation::<C>() != Generation::<C>::new(generation) {
-            return ebr::Ptr::null();
+            return sdd::Ptr::null();
         }
 
         data

@@ -35,7 +35,7 @@ name = "contention"
 harness = false
 
 [dependencies]
-scc = "2"
+sdd = "0.2"
 fastrand = "2"
 
 [target.'cfg(loom)'.dependencies]

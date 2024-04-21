@@ -32,7 +32,7 @@ It can lead to high contention and, hence, a huge performance penalty (see bench
 even if many threads mostly read and don't change data.
 
 The modern solution for this problem is [EBR] (Epoch-Based memory Reclamation).
-This crate is based on the EBR of the [`scc`] crate rather than [`crossbeam-epoch`] because it's more efficient.
+This crate is based on the EBR of the [`sdd`] crate rather than [`crossbeam-epoch`] because it's more efficient.
 
 Every insertion allocates a new EBR container. Thus, it's preferable to use a strong modern allocator (e.g. [`mimalloc`]) if insertions are frequent.
 
@@ -40,7 +40,7 @@ Note: this crate isn't optimized for insert/remove operations (although it could
 check [`sharded-slab`], it's the efficient and well-tested implementation of a concurrent slab.
 
 [EBR]: https://stackoverflow.com/a/77647126
-[`scc`]: https://crates.io/crates/scc
+[`sdd`]: https://crates.io/crates/sdd
 [`crossbeam-epoch`]: https://crates.io/crates/crossbeam-epoch
 [`sharded-slab`]: https://crates.io/crates/sharded-slab
 [`mimalloc`]: https://crates.io/crates/mimalloc
