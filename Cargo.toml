@@ -17,6 +17,7 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 unreachable_pub = "warn"
 missing_docs = "warn"
 missing_debug_implementations = "warn"
+unexpected_cfgs = "allow" # for `loom`
 
 [lints.clippy]
 undocumented_unsafe_blocks = "warn"
