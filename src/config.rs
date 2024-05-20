@@ -74,7 +74,7 @@ pub(crate) trait ConfigPrivate: Config {
     const MAX_GENERATIONS: u64 = 1u64 << Self::GENERATION_BITS;
 
     // Compile-time (only test/build, not check) postmono constraints.
-    // https://t.me/c/1601845432/304
+    // https://t.me/terriblerust/38
     const ENSURE_VALID: bool = {
         assert!(Self::INITIAL_PAGE_SIZE.is_power_of_two());
         assert!(Self::MAX_PAGES > 0);
