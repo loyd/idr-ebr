@@ -49,12 +49,12 @@ check [`sharded-slab`], it's the efficient and well-tested implementation of a c
 
 Inserting an item into the IDR, and returning a key:
 ```rust
-use idr_ebr::{Idr, Guard};
+use idr_ebr::{Idr, EbrGuard};
 
 let idr = Idr::default();
 let key = idr.insert("foo").unwrap();
 
-let guard = Guard::new(); // take EBR guard
+let guard = EbrGuard::new();
 assert_eq!(idr.get(key, &guard).unwrap(), "foo");
 ```
 
@@ -98,8 +98,8 @@ It compares the performance of the IDR with [`sharded-slab`] and simple `std::sy
 
 ![image](https://github.com/loyd/idr-ebr/assets/952180/099c1ef1-8120-460b-9b7b-83c09834dfb4)
 
-* `idr-pin-once`: one `Guard::new()` for all accesses
-* `idr-repin`: new `Guard::new()` on every access
+* `idr-pin-once`: one `EbrGuard::new()` for all accesses
+* `idr-repin`: new `EbrGuard::new()` on every access
 * `weak`: `std::sync::Weak::upgrade()`
 * `sharded-slab`: `Slab` with default parameters in the [`sharded-slab`] crate
 

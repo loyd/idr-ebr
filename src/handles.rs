@@ -5,6 +5,7 @@ use crate::{
     key::Key,
     page::{self, Page},
     slot::Slot,
+    EbrGuard,
 };
 
 // === VacantEntry ===
@@ -187,11 +188,11 @@ impl<T: PartialEq<T>> PartialEq<T> for OwnedEntry<T> {
 pub struct Iter<'g, 's, T, C> {
     pages: &'s [Page<T, C>],
     slots: Option<page::Iter<'g, 's, T, C>>,
-    guard: &'g sdd::Guard,
+    guard: &'g EbrGuard,
 }
 
 impl<'g, 's, T: 'static, C: Config> Iter<'g, 's, T, C> {
-    pub(crate) fn new(pages: &'s [Page<T, C>], guard: &'g sdd::Guard) -> Self {
+    pub(crate) fn new(pages: &'s [Page<T, C>], guard: &'g EbrGuard) -> Self {
         let (first, rest) = pages.split_first().expect("invalid MAX_PAGES");
 
         Self {

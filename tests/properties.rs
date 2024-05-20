@@ -18,7 +18,7 @@ use std::ops::Range;
 use indexmap::IndexMap;
 use proptest::prelude::*;
 
-use idr_ebr::{Config, DefaultConfig, Guard, Idr, Key};
+use idr_ebr::{Config, DefaultConfig, EbrGuard, Idr, Key};
 
 const ACTIONS: Range<usize> = 1..1000;
 
@@ -133,8 +133,8 @@ fn apply_action<C: Config>(
         Action::RemoveRandom(key) => {
             let used_key = used_bits::<C>(key);
             prop_assert_eq!(
-                idr.get(key, &Guard::new()).map(|e| *e),
-                idr.get(used_key, &Guard::new()).map(|e| *e)
+                idr.get(key, &EbrGuard::new()).map(|e| *e),
+                idr.get(used_key, &EbrGuard::new()).map(|e| *e)
             );
             prop_assert_eq!(idr.remove(key), active.remove(used_key).is_some());
         }
@@ -147,11 +147,11 @@ fn apply_action<C: Config>(
         Action::GetRandom(key) => {
             let used_key = used_bits::<C>(key);
             prop_assert_eq!(
-                idr.get(key, &Guard::new()).map(|e| *e),
-                idr.get(used_key, &Guard::new()).map(|e| *e)
+                idr.get(key, &EbrGuard::new()).map(|e| *e),
+                idr.get(used_key, &EbrGuard::new()).map(|e| *e)
             );
             prop_assert_eq!(
-                idr.get(key, &Guard::new()).map(|e| *e),
+                idr.get(key, &EbrGuard::new()).map(|e| *e),
                 active.get(used_key)
             );
             prop_assert_eq!(idr.get_owned(key).map(|e| *e), active.get(used_key));
@@ -159,7 +159,7 @@ fn apply_action<C: Config>(
         Action::GetExistent(seed) => {
             if let Some((key, value)) = active.get_any(seed) {
                 prop_assert!(idr.contains(key));
-                prop_assert_eq!(idr.get(key, &Guard::new()).map(|e| *e), Some(value));
+                prop_assert_eq!(idr.get(key, &EbrGuard::new()).map(|e| *e), Some(value));
                 prop_assert_eq!(idr.get_owned(key).map(|e| *e), Some(value));
             }
         }
@@ -181,14 +181,17 @@ fn run<C: Config>(actions: Vec<Action>) -> Result<(), TestCaseError> {
     let mut expected_values = Vec::new();
     for (key, value) in active.drain() {
         prop_assert!(idr.contains(key));
-        prop_assert_eq!(idr.get(key, &Guard::new()).map(|e| *e), Some(value));
+        prop_assert_eq!(idr.get(key, &EbrGuard::new()).map(|e| *e), Some(value));
         prop_assert_eq!(idr.get_owned(key).map(|e| *e), Some(value));
         expected_values.push(value);
     }
     expected_values.sort_unstable();
 
     // Ensure `iter()` returns all remaining entries.
-    let mut actual_values = idr.iter(&Guard::new()).map(|(_, v)| *v).collect::<Vec<_>>();
+    let mut actual_values = idr
+        .iter(&EbrGuard::new())
+        .map(|(_, v)| *v)
+        .collect::<Vec<_>>();
     actual_values.sort_unstable();
     prop_assert_eq!(actual_values, expected_values);
 

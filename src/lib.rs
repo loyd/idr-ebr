@@ -18,8 +18,6 @@ pub use self::{
     key::Key,
 };
 
-pub use sdd::Guard;
-
 // === Idr ===
 
 /// An IDR (IDentifier Resolver) provides a way to efficiently and concurrently
@@ -79,11 +77,11 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// # Example
     ///
     /// ```
-    /// use idr_ebr::{Idr, Guard};
+    /// use idr_ebr::{Idr, EbrGuard};
     ///
     /// let idr = Idr::default();
     /// let key = idr.insert("foo").unwrap();
-    /// assert_eq!(idr.get(key, &Guard::new()).unwrap(), "foo");
+    /// assert_eq!(idr.get(key, &EbrGuard::new()).unwrap(), "foo");
     /// ```
     #[inline]
     pub fn insert(&self, value: T) -> Option<Key> {
@@ -114,7 +112,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// # Example
     ///
     /// ```
-    /// use idr_ebr::{Idr, Guard};
+    /// use idr_ebr::{Idr, EbrGuard};
     ///
     /// let idr = Idr::default();
     ///
@@ -125,8 +123,8 @@ impl<T: 'static, C: Config> Idr<T, C> {
     ///     key
     /// };
     ///
-    /// assert_eq!(idr.get(key, &Guard::new()).unwrap().0, key);
-    /// assert_eq!(idr.get(key, &Guard::new()).unwrap().1, "foo");
+    /// assert_eq!(idr.get(key, &EbrGuard::new()).unwrap().0, key);
+    /// assert_eq!(idr.get(key, &EbrGuard::new()).unwrap().1, "foo");
     /// ```
     #[inline]
     pub fn vacant_entry(&self) -> Option<VacantEntry<'_, T, C>> {
@@ -150,12 +148,12 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// # Example
     ///
     /// ```
-    /// use idr_ebr::{Idr, Guard};
+    /// use idr_ebr::{Idr, EbrGuard};
     ///
     /// let idr = Idr::default();
     /// let key = idr.insert("foo").unwrap();
     ///
-    /// let guard = Guard::new();
+    /// let guard = EbrGuard::new();
     /// let entry = idr.get(key, &guard).unwrap();
     ///
     /// // Remove the entry from the IDR.
@@ -202,12 +200,12 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// # Example
     ///
     /// ```
-    /// use idr_ebr::{Idr, Guard, Key};
+    /// use idr_ebr::{Idr, EbrGuard, Key};
     ///
     /// let idr = Idr::default();
     /// let key = idr.insert("foo").unwrap();
     ///
-    /// let guard = Guard::new();
+    /// let guard = EbrGuard::new();
     /// let entry = idr.get(key, &guard).unwrap();
     /// assert_eq!(entry, "foo");
     ///
@@ -219,7 +217,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// assert!(idr.get(Key::try_from(12345).unwrap(), &guard).is_none());
     /// ```
     #[inline]
-    pub fn get<'g>(&self, key: Key, guard: &'g Guard) -> Option<BorrowedEntry<'g, T>> {
+    pub fn get<'g>(&self, key: Key, guard: &'g EbrGuard) -> Option<BorrowedEntry<'g, T>> {
         let page_no = key.page_no::<C>();
         let page = self.pages.get(page_no.to_usize())?;
         page.get(key, guard)
@@ -262,7 +260,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// ```
     #[inline]
     pub fn get_owned(&self, key: Key) -> Option<OwnedEntry<T>> {
-        self.get(key, &Guard::new()).map(BorrowedEntry::to_owned)
+        self.get(key, &EbrGuard::new()).map(BorrowedEntry::to_owned)
     }
 
     /// Returns `true` if the IDR contains an entry for the given key.
@@ -284,7 +282,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// ```
     #[inline]
     pub fn contains(&self, key: Key) -> bool {
-        self.get(key, &Guard::new()).is_some()
+        self.get(key, &EbrGuard::new()).is_some()
     }
 
     /// Returns a fused iterator over all occupied entries in the IDR.
@@ -309,13 +307,13 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// # Example
     ///
     /// ```
-    /// use idr_ebr::{Idr, Guard};
+    /// use idr_ebr::{Idr, EbrGuard};
     ///
     /// let idr = Idr::default();
     /// let foo_key = idr.insert("foo").unwrap();
     /// let bar_key = idr.insert("bar").unwrap();
     ///
-    /// let guard = Guard::new();
+    /// let guard = EbrGuard::new();
     /// let mut iter = idr.iter(&guard);
     ///
     /// let (key, entry) = iter.next().unwrap();
@@ -332,7 +330,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
     /// assert_eq!(entry, "baz");
     /// ```
     #[inline]
-    pub fn iter<'g>(&self, guard: &'g Guard) -> Iter<'g, '_, T, C> {
+    pub fn iter<'g>(&self, guard: &'g EbrGuard) -> Iter<'g, '_, T, C> {
         Iter::new(&self.pages, guard)
     }
 }
@@ -343,5 +341,42 @@ impl<T, C: Config> fmt::Debug for Idr<T, C> {
             .field("allocated_pages", &self.page_control.allocated())
             .field("config", &C::debug())
             .finish_non_exhaustive()
+    }
+}
+
+// === EbrGuard ===
+
+/// [`EbrGuard`] allows to access entries of [`Idr`].
+///
+/// Wraps [`sdd::Guard`] in order to avoid potential breaking changes.
+#[derive(Default)]
+#[must_use]
+pub struct EbrGuard(sdd::Guard);
+
+impl EbrGuard {
+    /// Creates a new [`EbrGuard`].
+    ///
+    /// # Panics
+    ///
+    /// The maximum number of [`EbrGuard`] instances in a thread is limited to
+    /// `u32::MAX`; a thread panics when the number of [`EbrGuard`]
+    /// instances in the thread exceeds the limit.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use idr_ebr::EbrGuard;
+    ///
+    /// let guard = EbrGuard::new();
+    /// ```
+    #[inline]
+    pub fn new() -> Self {
+        Self(sdd::Guard::new())
+    }
+}
+
+impl fmt::Debug for EbrGuard {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EbrGuard").finish()
     }
 }

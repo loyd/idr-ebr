@@ -1,4 +1,4 @@
-use idr_ebr::{Config, Guard, Idr};
+use idr_ebr::{Config, EbrGuard, Idr};
 
 #[test]
 fn few_slots() {
@@ -17,7 +17,7 @@ fn few_slots() {
             .collect::<Vec<_>>();
 
         for &(key, value) in &keys {
-            assert_eq!(idr.get(key, &Guard::new()).unwrap(), value);
+            assert_eq!(idr.get(key, &EbrGuard::new()).unwrap(), value);
         }
 
         assert!(idr.insert(0).is_none());

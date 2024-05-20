@@ -7,7 +7,7 @@ use loom::{
     thread,
 };
 
-use idr_ebr::{Config, Guard, Idr, Key};
+use idr_ebr::{Config, EbrGuard, Idr, Key};
 
 // === Helpers ===
 
@@ -72,7 +72,7 @@ fn vacant_entry() {
 
         let idr1 = idr.clone();
         let t1 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             let entry = show!(idr1.get(key, &guard));
             assert!(entry.is_none() || entry.unwrap() == "foo");
         });
@@ -80,7 +80,7 @@ fn vacant_entry() {
         show!(entry.insert("foo"));
         t1.join().unwrap();
 
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         assert_eq!(idr.get(key, &guard).unwrap(), "foo");
     });
 }
@@ -96,7 +96,7 @@ fn vacant_entry_2() {
         let idr1 = idr.clone();
         let idr2 = idr.clone();
         let t1 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             let entry = show!(idr1.get(key, &guard));
             assert!(entry.is_none() || entry.unwrap() == "foo");
         });
@@ -104,7 +104,7 @@ fn vacant_entry_2() {
         show!(entry.insert("foo"));
 
         let t2 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             let entry = show!(idr2.get(key, &guard));
             assert_eq!(entry.unwrap(), "foo");
         });
@@ -112,7 +112,7 @@ fn vacant_entry_2() {
         t1.join().unwrap();
         t2.join().unwrap();
 
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         assert_eq!(idr.get(key, &guard).unwrap(), "foo");
     });
 }
@@ -135,7 +135,7 @@ fn vacant_entry_remove() {
 
         entry.insert("foo");
 
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         assert_eq!(idr.get(key, &guard).unwrap(), "foo");
     });
 }
@@ -149,8 +149,8 @@ fn insert_full() {
         let key1 = idr.insert(1).unwrap();
         let key2 = idr.insert(2).unwrap();
 
-        assert_eq!(idr.get(key1, &Guard::new()).unwrap(), 1);
-        assert_eq!(idr.get(key2, &Guard::new()).unwrap(), 2);
+        assert_eq!(idr.get(key1, &EbrGuard::new()).unwrap(), 1);
+        assert_eq!(idr.get(key2, &EbrGuard::new()).unwrap(), 2);
 
         let idr1 = idr.clone();
         let t1 = thread::spawn(move || show!(idr1.remove(key1)));
@@ -168,7 +168,7 @@ fn insert_full() {
         let r1 = t1.join().unwrap();
         let r2 = t2.join().unwrap();
 
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         assert!(r1 && r2, "both threads removed entries");
         assert!(idr.get(key1, &guard).is_none());
         assert!(idr.get(key2, &guard).is_none());
@@ -234,7 +234,7 @@ fn concurrent_insert_remove_multiple() {
 
         let idr1 = idr.clone();
         let t1 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             let key = show!(idr1.insert(1)).unwrap();
             assert_eq!(show!(idr1.get(key, &guard)).unwrap(), 1);
             assert!(show!(idr1.remove(key)));
@@ -248,7 +248,7 @@ fn concurrent_insert_remove_multiple() {
 
         let idr2 = idr.clone();
         let t2 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             let key = show!(idr2.insert(3)).unwrap();
             assert_eq!(show!(idr2.get(key, &guard)).unwrap(), 3);
             assert!(show!(idr2.remove(key)));
@@ -272,22 +272,22 @@ fn concurrent_remove() {
         let idr = Arc::new(Idr::default());
 
         let key0 = idr.insert(0).unwrap();
-        assert_eq!(idr.get(key0, &Guard::new()).unwrap(), 0);
+        assert_eq!(idr.get(key0, &EbrGuard::new()).unwrap(), 0);
         let key1 = idr.insert(1).unwrap();
-        assert_eq!(idr.get(key1, &Guard::new()).unwrap(), 1);
+        assert_eq!(idr.get(key1, &EbrGuard::new()).unwrap(), 1);
         let key2 = idr.insert(2).unwrap();
-        assert_eq!(idr.get(key2, &Guard::new()).unwrap(), 2);
+        assert_eq!(idr.get(key2, &EbrGuard::new()).unwrap(), 2);
 
         let idr1 = idr.clone();
         let t1 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             assert_eq!(show!(idr1.get(key1, &guard)).unwrap(), 1);
             show!(idr1.remove(key1))
         });
 
         let idr2 = idr.clone();
         let t2 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             assert_eq!(show!(idr2.get(key2, &guard)).unwrap(), 2);
             show!(idr2.remove(key2))
         });
@@ -297,7 +297,7 @@ fn concurrent_remove() {
 
         assert!(r1 && r2, "both threads removed entries");
 
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         assert_eq!(idr.get(key0, &guard).unwrap(), 0);
         assert!(idr.get(key1, &guard).is_none());
         assert!(idr.get(key2, &guard).is_none());
@@ -313,7 +313,7 @@ fn racy_remove() {
 
         let idr1 = idr.clone();
         let t1 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             let seen = show!(idr1.get(key, &guard)).is_some();
             let removed = show!(idr1.remove(key));
             assert!(show!(idr1.get(key, &guard)).is_none());
@@ -322,7 +322,7 @@ fn racy_remove() {
 
         let idr2 = idr.clone();
         let t2 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             let seen = show!(idr2.get(key, &guard)).is_some();
             let removed = show!(idr2.remove(key));
             assert!(show!(idr2.get(key, &guard)).is_none());
@@ -334,7 +334,7 @@ fn racy_remove() {
 
         assert!(s1 || s2, "at least one thread observed the entry");
         assert!(r1 ^ r2, "exactly one thread removed the entry");
-        assert!(idr.get(key, &Guard::new()).is_none());
+        assert!(idr.get(key, &EbrGuard::new()).is_none());
     });
 }
 
@@ -371,7 +371,7 @@ fn racy_remove_guarded() {
         let idr = Arc::new(Idr::default());
 
         let key = idr.insert(1).unwrap();
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         let entry = idr.get(key, &guard).unwrap();
         assert_eq!(entry, 1);
 
@@ -400,10 +400,10 @@ fn remove_reuse() {
         let key3 = idr.insert(3).unwrap();
         let key4 = idr.insert(4).unwrap();
 
-        assert_eq!(idr.get(key1, &Guard::new()).unwrap(), 1);
-        assert_eq!(idr.get(key2, &Guard::new()).unwrap(), 2);
-        assert_eq!(idr.get(key3, &Guard::new()).unwrap(), 3);
-        assert_eq!(idr.get(key4, &Guard::new()).unwrap(), 4);
+        assert_eq!(idr.get(key1, &EbrGuard::new()).unwrap(), 1);
+        assert_eq!(idr.get(key2, &EbrGuard::new()).unwrap(), 2);
+        assert_eq!(idr.get(key3, &EbrGuard::new()).unwrap(), 3);
+        assert_eq!(idr.get(key4, &EbrGuard::new()).unwrap(), 4);
 
         let idr1 = idr.clone();
         let t1 = thread::spawn(move || {
@@ -420,7 +420,7 @@ fn remove_reuse() {
         t1.join().unwrap();
         let (key1, key3) = t2.join().unwrap();
 
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         assert_eq!(idr.get(key1, &guard).unwrap(), 5);
         assert_eq!(idr.get(key2, &guard).unwrap(), 2);
         assert_eq!(idr.get(key3, &guard).unwrap(), 6);
@@ -445,7 +445,7 @@ fn insert_share_remove() {
                     next = cvar.wait(next).unwrap();
                 }
                 let key = show!(next.take()).unwrap();
-                let guard = Guard::new();
+                let guard = EbrGuard::new();
                 assert_eq!(show!(idr2.get(key, &guard)).unwrap(), i);
                 assert!(show!(idr2.remove(key)));
                 cvar.notify_one();
@@ -465,7 +465,7 @@ fn insert_share_remove() {
                 next = cvar.wait(next).unwrap();
             }
 
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             assert!(show!(idr.get(key, &guard)).is_none());
         }
 
@@ -488,7 +488,7 @@ fn iter_insert() {
 
         let idr2 = idr.clone();
         let t2 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             let count = show!(idr2.iter(&guard)).count();
 
             // Any subset of the inserted entries can be observed.
@@ -499,7 +499,7 @@ fn iter_insert() {
         t1.join().unwrap();
         t2.join().unwrap();
 
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         let mut all = idr.iter(&guard).map(|(_, v)| *v).collect::<Vec<_>>();
         all.sort_unstable();
         assert_eq!(all.len(), 8);
@@ -530,7 +530,7 @@ fn iter_insert_remove() {
 
         let idr3 = idr.clone();
         let t3 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             let all = show!(idr3.iter(&guard))
                 .map(|(_, v)| *v)
                 .collect::<Vec<_>>();
@@ -547,7 +547,7 @@ fn iter_insert_remove() {
         t2.join().unwrap();
         t3.join().unwrap();
 
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         let count = idr.iter(&guard).count();
         assert_eq!(count, 0);
     });
@@ -621,7 +621,7 @@ fn ffi_insert_get() {
 
         let idr2 = idr.clone();
         let t2 = thread::spawn(move || {
-            let guard = Guard::new();
+            let guard = EbrGuard::new();
             show!(idr2.get(fake_key, &guard));
         });
 

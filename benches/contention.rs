@@ -111,7 +111,7 @@ fn only_read(c: &mut Criterion) {
             let k = idr.insert(Value(i)).unwrap();
 
             if i == 500 {
-                assert_eq!(idr.get(k, &idr_ebr::Guard::new()).unwrap().0, i); // sanity check
+                assert_eq!(idr.get(k, &idr_ebr::EbrGuard::new()).unwrap().0, i); // sanity check
                 key = Some(k);
             }
         }
@@ -135,12 +135,12 @@ fn only_read(c: &mut Criterion) {
         type State = ();
 
         fn make_state(&self, _thread_no: u32) {
-            let _guard = idr_ebr::Guard::new(); // warm up
+            let _guard = idr_ebr::EbrGuard::new(); // warm up
         }
 
         fn exec(&self, (): &mut Self::State) {
             let key = black_box(self.key);
-            black_box(self.idr.get(key, &idr_ebr::Guard::new()));
+            black_box(self.idr.get(key, &idr_ebr::EbrGuard::new()));
         }
     }
 
@@ -157,10 +157,10 @@ fn only_read(c: &mut Criterion) {
     }
 
     impl Testee for IdrPinOnceTestee {
-        type State = idr_ebr::Guard;
+        type State = idr_ebr::EbrGuard;
 
         fn make_state(&self, _thread_no: u32) -> Self::State {
-            idr_ebr::Guard::new()
+            idr_ebr::EbrGuard::new()
         }
 
         fn exec(&self, guard: &mut Self::State) {

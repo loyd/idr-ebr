@@ -7,6 +7,7 @@ use crate::{
         sync::atomic::{AtomicU32, Ordering},
         AtomicShared, ExclTrack,
     },
+    EbrGuard,
 };
 
 pub(crate) struct Slot<T, C> {
@@ -45,7 +46,7 @@ impl<T: 'static, C: Config> Slot<T, C> {
         // It can cause OOM if a thread is alive for a long time and doesn't use a
         // normal guard via `Idr::get()` or directly (see `insert_remove` benchmark).
         // TODO: create an issue in sdd. However, it's still required for `get()`.
-        let guard = sdd::Guard::new();
+        let guard = EbrGuard::new();
 
         // Check if this slot corresponds to the key.
         let ptr = self.get(key, &guard);
@@ -66,7 +67,7 @@ impl<T: 'static, C: Config> Slot<T, C> {
             (None, sdd::Tag::None),
             Ordering::AcqRel,
             Ordering::Relaxed,
-            &guard,
+            &guard.0,
         ) else {
             // If either the slot was removed or replaced, simply return.
             // We don't need to retry or check generation in this case.
@@ -75,7 +76,7 @@ impl<T: 'static, C: Config> Slot<T, C> {
 
         // It's impossible to reach this point for the same slot concurrently.
         let _track = self.exclusive.ensure();
-        let _ = unreachable.unwrap().release(&guard);
+        let _ = unreachable.unwrap().release(&guard.0);
 
         // We can use `store` instead of CAS here because:
         // * This code is executed only by one thread.
@@ -99,8 +100,8 @@ impl<T: 'static, C: Config> Slot<T, C> {
         self.next_free.store(index, Ordering::Release);
     }
 
-    pub(crate) fn get<'g>(&self, key: Key, guard: &'g sdd::Guard) -> sdd::Ptr<'g, T> {
-        let data = self.data.load(Ordering::Acquire, guard);
+    pub(crate) fn get<'g>(&self, key: Key, guard: &'g EbrGuard) -> sdd::Ptr<'g, T> {
+        let data = self.data.load(Ordering::Acquire, &guard.0);
         let generation = self.generation.load(Ordering::Relaxed);
 
         if key.generation::<C>() != Generation::<C>::new(generation) {

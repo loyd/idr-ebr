@@ -1,10 +1,10 @@
-use idr_ebr::{Config, Guard, Idr, Key};
+use idr_ebr::{Config, EbrGuard, Idr, Key};
 
 #[test]
 fn smoke() {
     let idr: Idr<_> = Idr::default();
 
-    assert_eq!(idr.iter(&Guard::new()).count(), 0);
+    assert_eq!(idr.iter(&EbrGuard::new()).count(), 0);
 
     // Insert values.
     let mut keys = (0..100)
@@ -13,7 +13,7 @@ fn smoke() {
 
     // Check that the values are accessible.
     for (key, value) in &keys {
-        assert_eq!(&*idr.get(*key, &Guard::new()).unwrap(), value);
+        assert_eq!(&*idr.get(*key, &EbrGuard::new()).unwrap(), value);
     }
 
     check_iter(&idr, keys.clone());
@@ -27,7 +27,7 @@ fn smoke() {
 
     // Check that remaining values are accessible.
     keys.retain(|(key, value)| {
-        let guard = Guard::new();
+        let guard = EbrGuard::new();
         let actual = idr.get(*key, &guard);
 
         if value % 2 == 0 {
@@ -43,7 +43,7 @@ fn smoke() {
 
     fn check_iter(idr: &Idr<i32>, mut expected: Vec<(Key, i32)>) {
         let mut actual = idr
-            .iter(&Guard::new())
+            .iter(&EbrGuard::new())
             .map(|(key, entry)| (key, *entry))
             .collect::<Vec<_>>();
 
@@ -75,7 +75,7 @@ fn extension() {
         assert_pages(&idr, expected_pages);
 
         let len = idr
-            .iter(&Guard::new())
+            .iter(&EbrGuard::new())
             .enumerate()
             .inspect(|(i, (_, value))| assert_eq!(*value, u32::try_from(*i).unwrap()))
             .count();
@@ -115,7 +115,7 @@ fn reuse() {
 
     let key3 = idr.insert(2).unwrap();
     assert_eq!(key3, key);
-    assert_eq!(idr.get(key, &Guard::new()).unwrap(), 2);
+    assert_eq!(idr.get(key, &EbrGuard::new()).unwrap(), 2);
     assert!(idr.remove(key));
     assert!(!idr.contains(key3));
 }
@@ -126,5 +126,5 @@ fn invalid_key() {
     let invalid_key = Key::try_from(1).unwrap();
 
     // Shouldn't panic.
-    idr.get(invalid_key, &Guard::new());
+    idr.get(invalid_key, &EbrGuard::new());
 }
