@@ -13,7 +13,7 @@ homepage = "https://github.com/loyd/idr-ebr"
 repository = "https://github.com/loyd/idr-ebr"
 
 [lints.rust]
-rust_2018_idioms = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
 unreachable_pub = "warn"
 missing_docs = "warn"
 missing_debug_implementations = "warn"

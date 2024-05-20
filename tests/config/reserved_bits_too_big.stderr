@@ -6,6 +6,12 @@ error[E0080]: evaluation of `<InvalidConfig as idr_ebr::config::ConfigPrivate>::
   |
   = note: this error originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+note: erroneous constant encountered
+  --> src/lib.rs
+   |
+   |         assert!(C::ENSURE_VALID);
+   |                 ^^^^^^^^^^^^^^^
+
 note: the above error was encountered while instantiating `fn idr_ebr::Idr::<u64, InvalidConfig>::new`
   --> tests/config/reserved_bits_too_big.rs:10:13
    |
