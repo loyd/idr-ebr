@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- next-header -->
 
 ## [Unreleased] - ReleaseDate
+
+## [0.2.0] - 2024-05-20
 ### Changed
 - **BREAKING**: wrap `sdd::Guard` into `EbrGuard`.
 - Replace `scc` with `sdd` (EBR is moved to the dedicated crate).
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feuer Frei!
 
 <!-- next-url -->
-[Unreleased]: https://github.com/loyd/idr-ebr/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/loyd/idr-ebr/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/loyd/idr-ebr/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/loyd/idr-ebr/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/loyd/idr-ebr/releases/tag/v0.1.0
