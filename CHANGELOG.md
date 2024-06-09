@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- next-header -->
 
 ## [Unreleased] - ReleaseDate
+### Changed
+- Replace `cfg(loom)` with `cfg(idr_ebr_loom)` and add the `loom` feature.
 
 ## [0.2.0] - 2024-05-20
 ### Changed

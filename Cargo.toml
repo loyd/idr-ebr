@@ -35,12 +35,20 @@ items_after_statements = "allow"
 name = "contention"
 harness = false
 
+[features]
+# Use the feature and cfg at the same time to avoid affecting `Cargo.lock`,
+# see https://github.com/crossbeam-rs/crossbeam/pull/666 for details.
+#
+# This configuration option is outside of the normal semver guarantees:
+# minor versions of idr-ebr may make breaking changes to it at any time.
+loom = ["dep:loom"]
+
 [dependencies]
 sdd = "0.2"
 fastrand = "2"
 
-[target.'cfg(loom)'.dependencies]
-loom = { version = "0.7", features = ["checkpoint"] }
+[target.'cfg(idr_ebr_loom)'.dependencies]
+loom = { version = "0.7", features = ["checkpoint"], optional = true }
 
 [dev-dependencies]
 criterion = "0.5.1"

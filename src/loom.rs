@@ -1,6 +1,6 @@
 pub(crate) use self::inner::*;
 
-#[cfg(not(loom))]
+#[cfg(not(all(idr_ebr_loom, feature = "loom")))]
 mod inner {
     pub(crate) use std::{alloc, sync, thread_local};
 
@@ -25,7 +25,7 @@ mod inner {
     pub(crate) struct ExclGuard<'a>(&'a ExclTrack);
 }
 
-#[cfg(loom)]
+#[cfg(all(idr_ebr_loom, feature = "loom"))]
 mod inner {
     pub(crate) use loom::{alloc, sync, thread_local};
 

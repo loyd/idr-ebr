@@ -1,4 +1,4 @@
-#![cfg(loom)]
+#![cfg(all(idr_ebr_loom, feature = "loom"))]
 
 use std::sync::Arc;
 
