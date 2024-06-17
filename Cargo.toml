@@ -11,6 +11,7 @@ description = "An efficient concurrent ID to object resolver"
 documentation = "https://docs.rs/idr-ebr/"
 homepage = "https://github.com/loyd/idr-ebr"
 repository = "https://github.com/loyd/idr-ebr"
+rust-version = "1.76.0" # update CI if changed
 
 [lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }

@@ -10,6 +10,7 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
   RUST_BACKTRACE: 1
+  MSRV: 1.76.0
 
 # TODO: check also i686-unknown-linux-musl
 jobs:
@@ -19,6 +20,17 @@ jobs:
     - uses: actions/checkout@v4
     - run: rustup show active-toolchain -v
     - run: cargo build --all-targets --all-features
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install ${{ env.MSRV }} --profile minimal
+      - run: rustup override set ${{ env.MSRV }}
+      - run: rustup show active-toolchain -v
+      - run: cargo build
+        env:
+          RUSTFLAGS: "" # remove -Dwarnings
 
   rustfmt:
     runs-on: ubuntu-latest
