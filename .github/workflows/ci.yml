@@ -9,6 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
+  RUSTDOCFLAGS: -Dwarnings
   RUST_BACKTRACE: 1
   MSRV: 1.76.0
 
@@ -81,3 +82,13 @@ jobs:
       - run: rustup show active-toolchain -v
       - run: cargo miri setup
       - run: cargo miri test
+
+  docs:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - run: rustup toolchain install nightly
+    - run: rustup override set nightly
+    - run: rustup show active-toolchain -v
+    - run: cargo doc --all-features
