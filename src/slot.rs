@@ -76,7 +76,7 @@ impl<T: 'static, C: Config> Slot<T, C> {
 
         // It's impossible to reach this point for the same slot concurrently.
         let _track = self.exclusive.ensure();
-        let _ = unreachable.unwrap().release(&guard.0);
+        let _ = unreachable.unwrap().release();
 
         // We can use `store` instead of CAS here because:
         // * This code is executed only by one thread.
