@@ -84,23 +84,15 @@ impl<'g, T> BorrowedEntry<'g, T> {
 
     /// Creates an owned handle to the entry.
     ///
+    /// It returns `None` if the entry has been removed from the IDR.
+    ///
     /// This method is lock-free, but it modifies the memory by incrementing the
     /// reference counter.
     ///
     /// See [`OwnedEntry`] for more details.
     #[inline]
-    pub fn to_owned(self) -> OwnedEntry<T> {
-        let maybe_shared = self.0.get_shared();
-
-        // SAFETY: The pointer is non-null, checked in `new()`.
-        OwnedEntry(unsafe { maybe_shared.unwrap_unchecked() })
-    }
-
-    #[doc(hidden)]
-    #[deprecated(note = "use `to_owned()` instead")]
-    #[inline]
-    pub fn into_owned(self) -> OwnedEntry<T> {
-        self.to_owned()
+    pub fn to_owned(self) -> Option<OwnedEntry<T>> {
+        self.0.get_shared().map(OwnedEntry)
     }
 }
 

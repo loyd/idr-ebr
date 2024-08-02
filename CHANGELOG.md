@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 ### Changed
+- **BREAKING**: remove `BorrowedEntry::into_owned()`.
 - Update `sdd` to v2.
+
+### Fixed
+- **BREAKING**: `BorrowedEntry::to_owned()` now returns `Option<OwnedEntry>`.
 
 ## [0.2.3] - 2024-07-17
 ### Changed

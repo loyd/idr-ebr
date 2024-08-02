@@ -128,3 +128,16 @@ fn invalid_key() {
     // Shouldn't panic.
     idr.get(invalid_key, &EbrGuard::new());
 }
+
+#[test]
+fn to_owned() {
+    let idr = Idr::<i32>::default();
+    let key = idr.insert(42).unwrap();
+
+    let guard = EbrGuard::new();
+    let entry = idr.get(key, &guard).unwrap();
+    assert!(entry.to_owned().is_some());
+
+    assert!(idr.remove(key));
+    assert!(entry.to_owned().is_none());
+}
