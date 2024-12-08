@@ -45,7 +45,7 @@ harness = false
 loom = ["dep:loom"]
 
 [dependencies]
-sdd = "2"
+sdd = "3"
 fastrand = "2"
 
 [target.'cfg(idr_ebr_loom)'.dependencies]
