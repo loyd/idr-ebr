@@ -41,7 +41,7 @@ harness = false
 #
 # This configuration option is outside of the normal semver guarantees:
 # minor versions of idr-ebr may make breaking changes to it at any time.
-loom = ["dep:loom"]
+loom = ["dep:loom", "sdd/loom"]
 
 [dependencies]
 sdd = "3"

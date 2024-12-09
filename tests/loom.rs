@@ -26,6 +26,10 @@ where
     loom::model(move || {
         iters.fetch_add(1, Ordering::Relaxed);
         f();
+
+        // Remaining garbage must be cleaned up once the test finishes in order to avoid
+        // "cannot access Loom execution state from outside a Loom model" errors.
+        sdd::Guard::new().accelerate();
     });
 
     let iters = iters1.load(Ordering::Relaxed);

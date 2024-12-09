@@ -1,11 +1,13 @@
 use std::marker::PhantomData;
 
+use sdd::AtomicShared;
+
 use crate::{
     config::Config,
     key::{Generation, Key},
     loom::{
         sync::atomic::{AtomicU32, Ordering},
-        AtomicShared, ExclTrack,
+        ExclTrack,
     },
     EbrGuard,
 };
