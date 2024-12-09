@@ -72,9 +72,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     env:
-      # stacked borrows: https://github.com/wvwwvwwv/scalable-concurrent-containers/issues/88
-      # memory leaks: EBR collector isn't triggered in most tests
-      MIRIFLAGS: -Zmiri-disable-stacked-borrows -Zmiri-ignore-leaks
+      # sdd doesn't follow strict provenance
+      # it stores tags in the lowest bits of pointers
+      MIRIFLAGS: -Zmiri-permissive-provenance
     steps:
       - uses: actions/checkout@v4
       - run: rustup toolchain install nightly --component miri
