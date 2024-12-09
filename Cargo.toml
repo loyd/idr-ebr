@@ -16,7 +16,6 @@ rust-version = "1.76.0" # update CI if changed
 [lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
 unreachable_pub = "warn"
-missing_docs = "warn"
 missing_debug_implementations = "warn"
 unexpected_cfgs = "allow" # for `loom`
 
@@ -53,7 +52,7 @@ loom = { version = "0.7", features = ["checkpoint"], optional = true }
 
 [dev-dependencies]
 criterion = "0.5.1"
-mimalloc = { version = "0.1.29", default_features = false }
+mimalloc = { version = "0.1.29", default-features = false }
 trybuild = "1"
 proptest = "1"
 indexmap = "2"

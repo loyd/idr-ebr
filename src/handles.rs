@@ -195,7 +195,7 @@ impl<'g, 's, T: 'static, C: Config> Iter<'g, 's, T, C> {
     }
 }
 
-impl<'g, 's, T: 'static, C: Config> Iterator for Iter<'g, 's, T, C> {
+impl<'g, T: 'static, C: Config> Iterator for Iter<'g, '_, T, C> {
     type Item = (Key, BorrowedEntry<'g, T>);
 
     fn next(&mut self) -> Option<Self::Item> {
