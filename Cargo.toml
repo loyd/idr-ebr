@@ -51,7 +51,7 @@ fastrand = "2"
 loom = { version = "0.7", features = ["checkpoint"], optional = true }
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = "0.8.1"
 mimalloc = { version = "0.1.29", default-features = false }
 trybuild = "1"
 proptest = "1"

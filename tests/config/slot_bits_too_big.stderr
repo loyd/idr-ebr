@@ -1,10 +1,8 @@
-error[E0080]: evaluation of `<InvalidConfig as idr_ebr::config::ConfigPrivate>::ENSURE_VALID` failed
+error[E0080]: evaluation panicked: assertion failed: Self::SLOT_BITS <= 32
  --> src/config.rs
   |
   |         assert!(Self::SLOT_BITS <= 32);
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the evaluated program panicked at 'assertion failed: Self::SLOT_BITS <= 32', $DIR/src/config.rs:82:9
-  |
-  = note: this error originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `<InvalidConfig as idr_ebr::config::ConfigPrivate>::ENSURE_VALID` failed here
 
 note: erroneous constant encountered
   --> src/lib.rs
@@ -12,7 +10,7 @@ note: erroneous constant encountered
    |         assert!(C::ENSURE_VALID);
    |                 ^^^^^^^^^^^^^^^
 
-note: the above error was encountered while instantiating `fn idr_ebr::Idr::<u64, InvalidConfig>::new`
+note: the above error was encountered while instantiating `fn Idr::<u64, InvalidConfig>::new`
  --> tests/config/slot_bits_too_big.rs:9:13
   |
 9 |     let _ = Idr::<u64, InvalidConfig>::new();

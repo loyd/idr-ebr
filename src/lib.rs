@@ -178,7 +178,7 @@ impl<T: 'static, C: Config> Idr<T, C> {
         let page_no = key.page_no::<C>();
         self.pages
             .get(page_no.to_usize())
-            .map_or(false, |page| page.remove(key))
+            .is_some_and(|page| page.remove(key))
     }
 
     /// Returns a borrowed handle to the entry associated with the given key,

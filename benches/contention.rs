@@ -1,13 +1,14 @@
 #![allow(missing_docs, clippy::too_many_lines)]
 
 use std::{
+    hint::black_box,
     str::FromStr,
     sync::Barrier,
     thread,
     time::{Duration, Instant},
 };
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 trait Testee: Send + Sync {
     type State;
