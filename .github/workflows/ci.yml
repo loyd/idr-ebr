@@ -57,8 +57,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: taiki-e/install-action@cargo-llvm-cov
     - run: rustup show active-toolchain -v
-    - run: cargo test
+    - run: cargo llvm-cov test --codecov --output-path codecov.json
+    - uses: codecov/codecov-action@v5
+      with:
+        files: codecov.json
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
 
   loom:
     needs: build

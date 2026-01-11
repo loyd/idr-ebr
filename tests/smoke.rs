@@ -136,8 +136,44 @@ fn to_owned() {
 
     let guard = EbrGuard::new();
     let entry = idr.get(key, &guard).unwrap();
-    assert!(entry.to_owned().is_some());
+    let owned = entry.to_owned();
+    assert_eq!(owned.clone().unwrap(), 42);
 
     assert!(idr.remove(key));
-    assert!(entry.to_owned().is_none());
+    assert!(entry.to_owned().is_some()); // `owned` is alive
+
+    #[allow(clippy::clone_on_copy)]
+    {
+        assert_eq!(owned.unwrap(), *entry.clone());
+    }
+
+    assert!(entry.to_owned().is_none()); // `owned` is gone
+}
+
+#[test]
+fn unused_vacant_entry() {
+    let idr = Idr::<i32>::default();
+
+    let key1 = idr.vacant_entry().unwrap().key();
+    let key2 = idr.vacant_entry().unwrap().key();
+
+    assert_eq!(key1, key2);
+}
+
+#[test]
+fn debug() {
+    let idr = Idr::<i32>::default();
+
+    let guard = EbrGuard::new();
+    assert_eq!(format!("{guard:?}"), "EbrGuard");
+
+    let iter = idr.iter(&guard);
+    assert_eq!(format!("{iter:?}"), "Iter { .. }");
+
+    let key = idr.insert(42).unwrap();
+    assert_eq!(format!("{:?}", idr.get_owned(key)), "Some(42)");
+    assert_eq!(format!("{:?}", idr.get(key, &guard)), "Some(42)");
+
+    let vacant = idr.vacant_entry().unwrap();
+    assert!(format!("{vacant:?}").starts_with("VacantEntry { key: "));
 }

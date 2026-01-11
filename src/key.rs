@@ -189,3 +189,16 @@ impl<C> PartialEq for Generation<C> {
         self.value == other.value
     }
 }
+
+#[test]
+#[allow(clippy::clone_on_copy)]
+fn test_roundtrip() {
+    let nz = NonZeroU64::new(42).unwrap();
+    assert_eq!(NonZeroU64::from(Key::from(nz)), nz);
+
+    let pn = PageNo::<crate::DefaultConfig>::new(42);
+    assert!(pn.clone() == pn);
+
+    let gen = Generation::<crate::DefaultConfig>::new(42);
+    assert!(gen.clone() == gen);
+}

@@ -84,7 +84,8 @@ impl<'g, T> BorrowedEntry<'g, T> {
 
     /// Creates an owned handle to the entry.
     ///
-    /// It returns `None` if the entry has been removed from the IDR.
+    /// It returns `None` if the entry has been removed from the IDR and
+    /// no owned handles exist.
     ///
     /// This method is lock-free, but it modifies the memory by incrementing the
     /// reference counter.

@@ -2,17 +2,20 @@
 
 [![Crates.io][crates-badge]][crates-url]
 [![Documentation][docs-badge]][docs-url]
-[![MIT licensed][mit-badge]][mit-url]
+[![License][license-badge]][license-url]
 [![Build Status][actions-badge]][actions-url]
+[![Codecov][codecov-badge]][codecov-url]
 
 [crates-badge]: https://img.shields.io/crates/v/idr-ebr.svg
 [crates-url]: https://crates.io/crates/idr-ebr
 [docs-badge]: https://img.shields.io/docsrs/idr-ebr
 [docs-url]: https://docs.rs/idr-ebr
-[mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[mit-url]: https://github.com/loyd/idr-ebr/blob/master/LICENSE
+[license-badge]: https://img.shields.io/badge/license-MIT-blue.svg
+[license-url]: https://github.com/loyd/idr-ebr/blob/master/LICENSE
 [actions-badge]: https://github.com/loyd/idr-ebr/actions/workflows/ci.yml/badge.svg
 [actions-url]: https://github.com/loyd/idr-ebr/actions/workflows/ci.yml
+[codecov-badge]: https://codecov.io/gh/loyd/idr-ebr/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/loyd/idr-ebr
 
 An IDR (IDentifier Resolver) provides a way to efficiently and concurrently
 map integer IDs to references to objects. It's particularly useful in
