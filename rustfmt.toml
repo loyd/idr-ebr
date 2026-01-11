@@ -1,4 +1,4 @@
-edition = "2021"
+edition = "2024"
 merge_derives = false
 imports_granularity = "Crate"
 normalize_comments = true

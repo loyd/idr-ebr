@@ -11,7 +11,7 @@ env:
   RUSTFLAGS: -Dwarnings
   RUSTDOCFLAGS: -Dwarnings
   RUST_BACKTRACE: 1
-  MSRV: 1.80.0
+  MSRV: 1.85.0
 
 # TODO: check also i686-unknown-linux-musl
 jobs:
