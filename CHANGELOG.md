@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- next-header -->
 
 ## [Unreleased] - ReleaseDate
+### Changed
+- Update `sdd` to v4.
+- Bump MSRV to 1.80.
 
 ## [0.3.1] - 2024-12-09
 ### Changed

@@ -11,7 +11,7 @@ description = "An efficient concurrent ID to object resolver"
 documentation = "https://docs.rs/idr-ebr/"
 homepage = "https://github.com/loyd/idr-ebr"
 repository = "https://github.com/loyd/idr-ebr"
-rust-version = "1.76.0" # update CI if changed
+rust-version = "1.80.0" # update CI if changed
 
 [lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
@@ -44,7 +44,7 @@ harness = false
 loom = ["dep:loom", "sdd/loom"]
 
 [dependencies]
-sdd = "3"
+sdd = "4.5.3"
 fastrand = "2"
 
 [target.'cfg(idr_ebr_loom)'.dependencies]
