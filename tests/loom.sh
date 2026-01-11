@@ -15,4 +15,4 @@ time RUSTFLAGS="${RUSTFLAGS} --cfg idr_ebr_loom -C debug-assertions" \
      LOOM_MAX_PREEMPTIONS="${LOOM_MAX_PREEMPTIONS:-2}" \
      LOOM_CHECKPOINT_INTERVAL="${LOOM_CHECKPOINT_INTERVAL:-1}" \
      LOOM_LOCATION=1 \
-     cargo test --release --features loom --test loom "$@"
+     cargo ${TEST_CMD_PREFIX} test --release --features loom --test loom "$@"
