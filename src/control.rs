@@ -4,8 +4,8 @@ use fastrand::Rng;
 
 use crate::loom::{
     sync::{
-        atomic::{AtomicU32, Ordering},
         Mutex,
+        atomic::{AtomicU32, Ordering},
     },
     thread_local,
 };

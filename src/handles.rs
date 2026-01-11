@@ -1,11 +1,11 @@
 use std::{fmt, mem, ops::Deref};
 
 use crate::{
+    EbrGuard,
     config::Config,
     key::Key,
     page::{self, Page},
     slot::Slot,
-    EbrGuard,
 };
 
 // === VacantEntry ===

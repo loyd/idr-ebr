@@ -23,7 +23,8 @@ impl Key {
     pub(crate) unsafe fn new_unchecked<C: Config>(slot_id: u32, generation: Generation<C>) -> Self {
         debug_assert!(0 < slot_id && slot_id <= C::SLOT_MASK);
         let raw = u64::from(generation.to_u32()) << C::SLOT_BITS | u64::from(slot_id);
-        Self(NonZeroU64::new_unchecked(raw))
+        // SAFETY: `raw` is non-zero because both parameters are non-zero.
+        Self(unsafe { NonZeroU64::new_unchecked(raw) })
     }
 
     pub(crate) fn page_no<C: Config>(self) -> PageNo<C> {
@@ -73,8 +74,8 @@ impl Key {
     }
 
     pub(crate) fn generation<C: Config>(self) -> Generation<C> {
-        let gen = (self.0.get() >> C::SLOT_BITS) as u32 & C::GENERATION_MASK;
-        Generation::new(gen)
+        let generation = (self.0.get() >> C::SLOT_BITS) as u32 & C::GENERATION_MASK;
+        Generation::new(generation)
     }
 }
 
@@ -199,6 +200,6 @@ fn test_roundtrip() {
     let pn = PageNo::<crate::DefaultConfig>::new(42);
     assert!(pn.clone() == pn);
 
-    let gen = Generation::<crate::DefaultConfig>::new(42);
-    assert!(gen.clone() == gen);
+    let gn = Generation::<crate::DefaultConfig>::new(42);
+    assert!(gn.clone() == gn);
 }

@@ -3,13 +3,13 @@ use std::marker::PhantomData;
 use sdd::AtomicShared;
 
 use crate::{
+    EbrGuard,
     config::Config,
     key::{Generation, Key},
     loom::{
-        sync::atomic::{AtomicU32, Ordering},
         ExclTrack,
+        sync::atomic::{AtomicU32, Ordering},
     },
-    EbrGuard,
 };
 
 pub(crate) struct Slot<T, C> {
@@ -90,8 +90,8 @@ impl<T: 'static, C: Config> Slot<T, C> {
     }
 
     pub(crate) fn generation(&self) -> Generation<C> {
-        let gen = self.generation.load(Ordering::Relaxed);
-        Generation::<C>::new(gen)
+        let generation = self.generation.load(Ordering::Relaxed);
+        Generation::<C>::new(generation)
     }
 
     pub(crate) fn next_free(&self) -> u32 {

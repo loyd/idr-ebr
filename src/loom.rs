@@ -54,7 +54,7 @@ mod inner {
 
     impl Drop for ExclGuard<'_> {
         fn drop(&mut self) {
-            assert!(self.0 .0.swap(false, Ordering::Relaxed));
+            assert!(self.0.0.swap(false, Ordering::Relaxed));
         }
     }
 }

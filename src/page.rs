@@ -1,6 +1,7 @@
 use std::{ptr, slice};
 
 use crate::{
+    BorrowedEntry, EbrGuard,
     config::Config,
     control::PageControl,
     key::{Key, PageNo},
@@ -9,7 +10,6 @@ use crate::{
         sync::atomic::{AtomicPtr, AtomicU32, Ordering},
     },
     slot::Slot,
-    BorrowedEntry, EbrGuard,
 };
 
 // === Page ===
@@ -43,7 +43,7 @@ impl<T: 'static, C: Config> Page<T, C> {
             slot.set_next_free(free_head);
 
             // SAFETY: Derived from the invariant that the slot belongs to this page.
-            let slot_index = ptr::from_ref(slot).offset_from(slots_ptr);
+            let slot_index = unsafe { ptr::from_ref(slot).offset_from(slots_ptr) };
             debug_assert!((0isize..(1 << 31)).contains(&slot_index));
 
             // It never truncates, because the index is less than 2^31.
