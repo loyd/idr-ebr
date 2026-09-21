@@ -7,7 +7,7 @@ use crate::{
     key::{Key, PageNo},
     loom::{
         alloc,
-        sync::atomic::{AtomicPtr, AtomicU32, Ordering},
+        sync::atomic::{AtomicPtr, AtomicU64, Ordering},
     },
     slot::Slot,
 };
@@ -18,7 +18,7 @@ pub(crate) struct Page<T, C> {
     start_slot_id: u32,
     capacity: u32,
     slots: AtomicPtr<Slot<T, C>>,
-    free_head: AtomicU32, // MAX means no free slots
+    free_head: AtomicU64, // tag << 32 | index, MAX index means no free slots
 }
 
 impl<T: 'static, C: Config> Page<T, C> {
@@ -27,7 +27,7 @@ impl<T: 'static, C: Config> Page<T, C> {
             start_slot_id: page_no.start_slot_id(),
             capacity: page_no.capacity(),
             slots: AtomicPtr::new(ptr::null_mut()),
-            free_head: AtomicU32::new(0),
+            free_head: AtomicU64::new(0),
         }
     }
 
@@ -40,7 +40,7 @@ impl<T: 'static, C: Config> Page<T, C> {
 
         let mut free_head = self.free_head.load(Ordering::Acquire);
         loop {
-            slot.set_next_free(free_head);
+            slot.set_next_free(free_head as u32);
 
             // SAFETY: Derived from the invariant that the slot belongs to this page.
             let slot_index = unsafe { ptr::from_ref(slot).offset_from(slots_ptr) };
@@ -54,7 +54,7 @@ impl<T: 'static, C: Config> Page<T, C> {
 
             if let Err(new_free_head) = self.free_head.compare_exchange(
                 free_head,
-                slot_index,
+                tagged(free_head, slot_index),
                 Ordering::AcqRel,
                 Ordering::Acquire,
             ) {
@@ -71,28 +71,29 @@ impl<T: 'static, C: Config> Page<T, C> {
 
         let mut free_head = self.free_head.load(Ordering::Acquire);
         let (slot_index, slot) = loop {
-            if free_head == u32::MAX {
+            let slot_index = free_head as u32;
+            if slot_index == u32::MAX {
                 return None;
             }
 
-            debug_assert!(free_head < self.capacity);
+            debug_assert!(slot_index < self.capacity);
 
             // SAFETY: Both the starting and resulting pointer is in bounds of the same
-            // allocated object, because `free_head` is always less than `self.capacity`.
-            let slot = unsafe { &*slots_ptr.add(free_head as usize) };
+            // allocated object, because `slot_index` is always less than `self.capacity`.
+            let slot = unsafe { &*slots_ptr.add(slot_index as usize) };
 
             let next_free_head = slot.next_free();
             debug_assert!(next_free_head == u32::MAX || next_free_head < self.capacity);
 
             if let Err(new_free_head) = self.free_head.compare_exchange(
                 free_head,
-                next_free_head,
+                tagged(free_head, next_free_head),
                 Ordering::AcqRel,
                 Ordering::Acquire,
             ) {
                 free_head = new_free_head;
             } else {
-                break (free_head, slot);
+                break (slot_index, slot);
             }
         };
 
@@ -198,6 +199,11 @@ impl<T: 'static, C: Config> Page<T, C> {
         debug_assert!(self.slots.load(Ordering::Relaxed).is_null());
         self.slots.store(slots_ptr, Ordering::Release);
     }
+}
+
+// The tag is bumped on every update to prevent ABA on the free list.
+fn tagged(free_head: u64, index: u32) -> u64 {
+    ((free_head >> 32) + 1) << 32 | u64::from(index)
 }
 
 impl<T, C> Drop for Page<T, C> {
