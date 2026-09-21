@@ -432,6 +432,35 @@ fn remove_reuse() {
     });
 }
 
+// One thread inserts twice while another one inserts twice and removes the first entry.
+// ABA on the page's free list can make the second insert reuse an occupied slot.
+#[test]
+fn reserve_aba() {
+    run_model(|| {
+        let idr = Arc::new(Idr::<_, TinyConfig>::new());
+
+        let idr1 = idr.clone();
+        let t1 = thread::spawn(move || {
+            show!(idr1.insert(1)).unwrap();
+            show!(idr1.insert(2)).unwrap()
+        });
+
+        let idr2 = idr.clone();
+        let t2 = thread::spawn(move || {
+            let key3 = show!(idr2.insert(3)).unwrap();
+            let key4 = show!(idr2.insert(4)).unwrap();
+            assert!(show!(idr2.remove(key3)));
+            key4
+        });
+
+        let key2 = t1.join().unwrap();
+        let key4 = t2.join().unwrap();
+
+        assert_ne!(key2, key4, "two live entries got the same key");
+        assert_eq!(idr.get(key4, &EbrGuard::new()).unwrap(), 4);
+    });
+}
+
 // One thread inserts an entry, and another thread removes it.
 #[test]
 fn insert_share_remove() {
