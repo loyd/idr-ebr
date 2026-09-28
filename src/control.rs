@@ -101,6 +101,7 @@ impl PageControl {
 }
 
 thread_local! {
+    #[allow(clippy::missing_const_for_thread_local)]
     static RNG: Cell<Rng> = Cell::new(Rng::with_seed(0xef6_f79e_d30b_a75a));
 }
 

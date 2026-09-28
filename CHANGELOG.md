@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 ### Fixed
-- `Idr::vacant_entry()` could return an occupied slot due to ABA on the free list.
+- `Idr::vacant_entry()` could return an occupied slot due to ABA on the free list ([#1]).
+
+[#1]: https://github.com/loyd/idr-ebr/pull/1
 
 ## [0.3.2] - 2026-01-11
 ### Changed
