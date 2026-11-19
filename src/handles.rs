@@ -18,13 +18,13 @@ use crate::{
 ///
 /// [`Idr::vacant_entry()`]: crate::Idr::vacant_entry
 #[must_use]
-pub struct VacantEntry<'s, T: 'static, C: Config> {
+pub struct VacantEntry<'s, T: 'static + std::marker::Send, C: Config> {
     page: &'s Page<T, C>,
     slot: &'s Slot<T, C>,
     key: Key,
 }
 
-impl<'s, T: 'static, C: Config> VacantEntry<'s, T, C> {
+impl<'s, T: 'static + std::marker::Send, C: Config> VacantEntry<'s, T, C> {
     pub(crate) fn new(page: &'s Page<T, C>, slot: &'s Slot<T, C>, key: Key) -> Self {
         Self { page, slot, key }
     }
@@ -51,7 +51,7 @@ impl<'s, T: 'static, C: Config> VacantEntry<'s, T, C> {
     }
 }
 
-impl<T: 'static, C: Config> Drop for VacantEntry<'_, T, C> {
+impl<T: 'static + std::marker::Send, C: Config> Drop for VacantEntry<'_, T, C> {
     #[inline]
     fn drop(&mut self) {
         // SAFETY: The slot belongs to this page by construction.
@@ -59,7 +59,7 @@ impl<T: 'static, C: Config> Drop for VacantEntry<'_, T, C> {
     }
 }
 
-impl<T, C: Config> fmt::Debug for VacantEntry<'_, T, C> {
+impl<T: std::marker::Send, C: Config> fmt::Debug for VacantEntry<'_, T, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("VacantEntry")
             .field("key", &self.key)
@@ -184,7 +184,7 @@ pub struct Iter<'g, 's, T, C> {
     guard: &'g EbrGuard,
 }
 
-impl<'g, 's, T: 'static, C: Config> Iter<'g, 's, T, C> {
+impl<'g, 's, T: 'static + std::marker::Send, C: Config> Iter<'g, 's, T, C> {
     pub(crate) fn new(pages: &'s [Page<T, C>], guard: &'g EbrGuard) -> Self {
         let (first, rest) = pages.split_first().expect("invalid MAX_PAGES");
 
@@ -196,7 +196,7 @@ impl<'g, 's, T: 'static, C: Config> Iter<'g, 's, T, C> {
     }
 }
 
-impl<'g, T: 'static, C: Config> Iterator for Iter<'g, '_, T, C> {
+impl<'g, T: 'static + std::marker::Send, C: Config> Iterator for Iter<'g, '_, T, C> {
     type Item = (Key, BorrowedEntry<'g, T>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -219,7 +219,7 @@ impl<'g, T: 'static, C: Config> Iterator for Iter<'g, '_, T, C> {
     }
 }
 
-impl<T: 'static, C: Config> std::iter::FusedIterator for Iter<'_, '_, T, C> {}
+impl<T: 'static + std::marker::Send, C: Config> std::iter::FusedIterator for Iter<'_, '_, T, C> {}
 
 impl<T, C> fmt::Debug for Iter<'_, '_, T, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

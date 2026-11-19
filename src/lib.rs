@@ -33,13 +33,13 @@ pub struct Idr<T, C = DefaultConfig> {
     page_control: PageControl,
 }
 
-impl<T: 'static> Default for Idr<T> {
+impl<T: 'static + std::marker::Send> Default for Idr<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: 'static, C: Config> Idr<T, C> {
+impl<T: 'static + std::marker::Send, C: Config> Idr<T, C> {
     /// The number of bits in each key which are used by the IDR.
     ///
     /// If other data is packed into the keys returned by [`Idr::insert()`],
