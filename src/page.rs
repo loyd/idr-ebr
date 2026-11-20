@@ -21,7 +21,7 @@ pub(crate) struct Page<T, C> {
     free_head: AtomicU64, // tag << 32 | index, MAX index means no free slots
 }
 
-impl<T: 'static, C: Config> Page<T, C> {
+impl<T: 'static + std::marker::Send, C: Config> Page<T, C> {
     pub(crate) fn new(page_no: PageNo<C>) -> Self {
         Self {
             start_slot_id: page_no.start_slot_id(),
@@ -248,7 +248,7 @@ pub(crate) struct Iter<'g, 's, T, C> {
     guard: &'g EbrGuard,
 }
 
-impl<'g, T: 'static, C: Config> Iterator for Iter<'g, '_, T, C> {
+impl<'g, T: 'static + std::marker::Send, C: Config> Iterator for Iter<'g, '_, T, C> {
     type Item = (Key, BorrowedEntry<'g, T>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -270,4 +270,4 @@ impl<'g, T: 'static, C: Config> Iterator for Iter<'g, '_, T, C> {
     }
 }
 
-impl<T: 'static, C: Config> std::iter::FusedIterator for Iter<'_, '_, T, C> {}
+impl<T: 'static + std::marker::Send, C: Config> std::iter::FusedIterator for Iter<'_, '_, T, C> {}

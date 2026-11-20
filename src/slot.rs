@@ -20,7 +20,7 @@ pub(crate) struct Slot<T, C> {
     _config: PhantomData<C>,
 }
 
-impl<T: 'static, C: Config> Slot<T, C> {
+impl<T: 'static + std::marker::Send, C: Config> Slot<T, C> {
     pub(crate) fn new(next_free: u32) -> Self {
         Self {
             generation: AtomicU32::new(0),
